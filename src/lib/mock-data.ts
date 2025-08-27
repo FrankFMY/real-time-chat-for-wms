@@ -179,7 +179,22 @@ export const mockMessages: Message[] = [
 		timestamp: new Date(Date.now() - 10 * 60 * 1000),
 		type: 'text',
 		status: 'read',
-		reactions: []
+		reactions: [
+			{
+				id: 'react1',
+				emoji: '👍',
+				userId: '1',
+				messageId: 'msg1_1',
+				createdAt: new Date(Date.now() - 9 * 60 * 1000)
+			},
+			{
+				id: 'react2',
+				emoji: '❤️',
+				userId: '3',
+				messageId: 'msg1_1',
+				createdAt: new Date(Date.now() - 8 * 60 * 1000)
+			}
+		]
 	},
 	{
 		id: 'msg1_2',
@@ -189,7 +204,15 @@ export const mockMessages: Message[] = [
 		timestamp: new Date(Date.now() - 8 * 60 * 1000),
 		type: 'text',
 		status: 'read',
-		reactions: []
+		reactions: [
+			{
+				id: 'react3',
+				emoji: '😄',
+				userId: '2',
+				messageId: 'msg1_2',
+				createdAt: new Date(Date.now() - 7 * 60 * 1000)
+			}
+		]
 	},
 	{
 		id: 'msg1_3',
@@ -211,7 +234,22 @@ export const mockMessages: Message[] = [
 		timestamp: new Date(Date.now() - 45 * 60 * 1000),
 		type: 'text',
 		status: 'read',
-		reactions: []
+		reactions: [
+			{
+				id: 'react4',
+				emoji: '👍',
+				userId: '1',
+				messageId: 'msg2_1',
+				createdAt: new Date(Date.now() - 44 * 60 * 1000)
+			},
+			{
+				id: 'react5',
+				emoji: '👍',
+				userId: '3',
+				messageId: 'msg2_1',
+				createdAt: new Date(Date.now() - 43 * 60 * 1000)
+			}
+		]
 	},
 	{
 		id: 'msg2_2',

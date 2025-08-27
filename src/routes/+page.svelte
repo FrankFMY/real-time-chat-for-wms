@@ -12,7 +12,9 @@
 		Video,
 		Info,
 		ChevronLeft,
-		Menu
+		Menu,
+		Sun,
+		Moon
 	} from 'lucide-svelte';
 
 	// WebSocket stores
@@ -33,6 +35,7 @@
 
 	// Моковые данные для демо (в реальном приложении будут из аутентификации)
 	import { mockUsers, mockChats, mockMessages } from '$lib/mock-data';
+	import MessageReactions from '$lib/components/MessageReactions.svelte';
 
 	// Текущий пользователь (в реальном приложении будет из аутентификации)
 	const currentUser = mockUsers[0];
@@ -42,6 +45,54 @@
 	let showSidebar = $state(true);
 	let typingTimeout: NodeJS.Timeout | null = null;
 	let initialized = $state(false);
+	let isDarkMode = $state(false);
+
+	// Переключение темы
+	function toggleTheme() {
+		isDarkMode = !isDarkMode;
+		if (browser) {
+			document.documentElement.classList.toggle('dark', isDarkMode);
+			localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+			
+			// Обновляем CSS переменные
+			const root = document.documentElement;
+			if (isDarkMode) {
+				root.style.setProperty('--text-color', '#ffffff');
+				root.style.setProperty('--bg-color', '#1f2937');
+				root.style.setProperty('--border-color', '#374151');
+			} else {
+				root.style.setProperty('--text-color', '#000000');
+				root.style.setProperty('--bg-color', '#ffffff');
+				root.style.setProperty('--border-color', '#e5e7eb');
+			}
+			
+			console.log('Theme toggled:', isDarkMode ? 'dark' : 'light');
+			console.log('HTML classList:', document.documentElement.classList.toString());
+		}
+	}
+
+	// Инициализация темы
+	if (browser) {
+		const savedTheme = localStorage.getItem('theme');
+		const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+		isDarkMode = savedTheme === 'dark' || (!savedTheme && prefersDark);
+		document.documentElement.classList.toggle('dark', isDarkMode);
+		
+		// Инициализируем CSS переменные
+		const root = document.documentElement;
+		if (isDarkMode) {
+			root.style.setProperty('--text-color', '#ffffff');
+			root.style.setProperty('--bg-color', '#1f2937');
+			root.style.setProperty('--border-color', '#374151');
+		} else {
+			root.style.setProperty('--text-color', '#000000');
+			root.style.setProperty('--bg-color', '#ffffff');
+			root.style.setProperty('--border-color', '#e5e7eb');
+		}
+		
+		console.log('Theme initialized:', isDarkMode ? 'dark' : 'light');
+		console.log('HTML classList:', document.documentElement.classList.toString());
+	}
 
 	// Загрузка данных
 	async function loadInitialData() {
@@ -132,6 +183,42 @@
 		typingTimeout = setTimeout(() => {
 			chatActions.stopTyping(chatId);
 		}, 2000);
+	}
+
+	// Обработчики реакций
+	function handleAddReaction(event: CustomEvent<{ messageId: string; emoji: string }>) {
+		const { messageId, emoji } = event.detail;
+		
+		// Находим сообщение и добавляем реакцию
+		const message = mockMessages.find(m => m.id === messageId);
+		if (message) {
+			const newReaction: Reaction = {
+				id: `react-${Date.now()}`,
+				emoji,
+				userId: '1', // Текущий пользователь
+				messageId,
+				createdAt: new Date()
+			};
+			message.reactions.push(newReaction);
+			
+			// Обновляем store
+			messages.update(current => ({ ...current }));
+		}
+	}
+
+	function handleRemoveReaction(event: CustomEvent<{ messageId: string; emoji: string }>) {
+		const { messageId, emoji } = event.detail;
+		
+		// Находим сообщение и удаляем реакцию
+		const message = mockMessages.find(m => m.id === messageId);
+		if (message) {
+			message.reactions = message.reactions.filter(
+				r => !(r.emoji === emoji && r.userId === '1')
+			);
+			
+			// Обновляем store
+			messages.update(current => ({ ...current }));
+		}
 	}
 
 	// Переключение чата
@@ -228,13 +315,14 @@
 		<aside class="chat-sidebar">
 			<!-- Заголовок -->
 			<header
-				class="flex h-16 items-center border-b border-gray-200 bg-white px-4 dark:border-gray-700 dark:bg-gray-800"
+				class="flex h-16 items-center border-b border-gray-200 px-4 dark:border-gray-700"
+				style="background-color: var(--bg-color);"
 			>
 				{#if currentUser}
 					<div class="flex items-center gap-3">
 						<img src={currentUser.avatar} alt={currentUser.name} class="user-avatar" />
 						<div>
-							<h2 class="font-semibold text-gray-900 dark:text-gray-100">{currentUser.name}</h2>
+							<h2 class="font-semibold" style="color: var(--text-color);">{currentUser.name}</h2>
 							{#if browser}
 								<div class="flex items-center gap-1">
 									<div class="status-indicator online"></div>
@@ -248,9 +336,18 @@
 						</div>
 					</div>
 				{/if}
-				<button class="btn-ghost ml-auto" onclick={toggleSidebar}>
-					<ChevronLeft class="h-5 w-5" />
-				</button>
+				<div class="ml-auto flex items-center gap-2">
+					<button class="btn-ghost" onclick={toggleTheme} title={isDarkMode ? 'Переключить на светлую тему' : 'Переключить на тёмную тему'}>
+						{#if isDarkMode}
+							<Sun class="h-4 w-4" />
+						{:else}
+							<Moon class="h-4 w-4" />
+						{/if}
+					</button>
+					<button class="btn-ghost" onclick={toggleSidebar}>
+						<ChevronLeft class="h-5 w-5" />
+					</button>
+				</div>
 			</header>
 
 			<!-- Поиск -->
@@ -288,9 +385,9 @@
 
 						<div class="min-w-0 flex-1">
 							<div class="flex items-center justify-between">
-								<h3 class="truncate font-medium text-gray-900 dark:text-gray-100">
-									{chat.name}
-								</h3>
+													<h3 class="truncate font-semibold" style="color: var(--text-color);">
+						{chat.name}
+					</h3>
 								{#if lastMessage}
 									<span class="text-xs text-gray-500 dark:text-gray-400">
 										{formatTime(lastMessage.timestamp)}
@@ -330,7 +427,7 @@
 				<div class="flex items-center gap-3">
 					<img src={$activeChat.avatar} alt={$activeChat.name} class="user-avatar" />
 					<div>
-						<h1 class="font-semibold text-gray-900 dark:text-gray-100">{$activeChat.name}</h1>
+						<h1 class="font-bold" style="color: var(--text-color);">{$activeChat.name}</h1>
 						{#if $activeChat.type === 'direct' && currentUser}
 							{@const otherUser = mockUsers.find(
 								(u) => u.id !== currentUser.id && $activeChat.participants.includes(u.id)
@@ -347,6 +444,13 @@
 				</div>
 
 				<div class="ml-auto flex items-center gap-2">
+					<button class="btn-ghost" onclick={toggleTheme} title={isDarkMode ? 'Переключить на светлую тему' : 'Переключить на тёмную тему'}>
+						{#if isDarkMode}
+							<Sun class="h-5 w-5" />
+						{:else}
+							<Moon class="h-5 w-5" />
+						{/if}
+					</button>
 					<button class="btn-ghost">
 						<Phone class="h-5 w-5" />
 					</button>
@@ -372,9 +476,9 @@
 
 						<div class="flex flex-col {isOwn ? 'items-end' : 'items-start'}">
 							{#if !isOwn}
-								<span class="mb-1 text-sm font-medium text-gray-900 dark:text-gray-100">
-									{sender?.name}
-								</span>
+														<span class="mb-1 text-sm font-semibold" style="color: var(--text-color);">
+							{sender?.name}
+						</span>
 							{/if}
 
 							<div class="message-bubble {isOwn ? 'sent' : 'received'}">
@@ -391,6 +495,15 @@
 									</span>
 								{/if}
 							</div>
+
+							<!-- Реакции на сообщения -->
+							<MessageReactions
+								messageId={message.id}
+								reactions={message.reactions}
+								currentUserId="1"
+								on:addReaction={handleAddReaction}
+								on:removeReaction={handleRemoveReaction}
+							/>
 						</div>
 					</div>
 				{/each}
