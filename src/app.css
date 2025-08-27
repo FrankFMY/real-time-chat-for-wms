@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import 'tailwindcss';
 
 /* CSS переменные для цветов темы */
@@ -6,9 +8,6 @@
 	--bg-color: #ffffff;
 	--border-color: #e5e7eb;
 }
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 /* Base styles */
 html {
@@ -488,4 +487,121 @@ body {
 		transform: scale(1);
 		opacity: 1;
 	}
+}
+
+/* Стили для изображений в сообщениях */
+.message-images {
+	margin-top: 0.5rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.image-container {
+	position: relative;
+	border-radius: 0.5rem;
+	overflow: hidden;
+	cursor: pointer;
+	transition: transform 0.2s ease;
+	border: none;
+	background: none;
+	padding: 0;
+	display: block;
+	width: 100%;
+}
+
+.image-container:hover {
+	transform: scale(1.02);
+}
+
+.image-container:focus {
+	outline: 2px solid #3b82f6;
+	outline-offset: 2px;
+}
+
+.message-image {
+	max-width: 300px;
+	max-height: 200px;
+	width: 100%;
+	height: auto;
+	object-fit: cover;
+	border-radius: 0.5rem;
+}
+
+.image-overlay {
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+	padding: 0.5rem;
+	color: white;
+	font-size: 0.75rem;
+}
+
+.image-name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.file-attachment {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.5rem;
+	background-color: rgba(0, 0, 0, 0.05);
+	border-radius: 0.5rem;
+	margin-top: 0.5rem;
+}
+
+.dark .file-attachment {
+	background-color: rgba(255, 255, 255, 0.1);
+}
+
+.file-icon {
+	color: #6b7280;
+}
+
+.file-info {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+}
+
+.file-name {
+	font-size: 0.875rem;
+	font-weight: 500;
+	color: var(--text-color);
+}
+
+.file-size {
+	font-size: 0.75rem;
+	color: #6b7280;
+}
+
+/* Модальное окно загрузки файлов */
+.file-upload-modal {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100vw;
+	height: 100vh;
+	background-color: rgba(0, 0, 0, 0.5);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 9998;
+}
+
+.file-upload-content {
+	background-color: var(--bg-color);
+	border-radius: 0.75rem;
+	padding: 2rem;
+	max-width: 90vw;
+	max-height: 90vh;
+	overflow-y: auto;
+	box-shadow:
+		0 20px 25px -5px rgba(0, 0, 0, 0.1),
+		0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }

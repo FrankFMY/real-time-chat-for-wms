@@ -218,6 +218,35 @@ export const mockMessages: Message[] = [
 		id: 'msg1_3',
 		chatId: '1',
 		senderId: '2',
+		content: 'Отлично! Посмотри, что я нашла!',
+		timestamp: new Date(Date.now() - 7 * 60 * 1000),
+		type: 'image',
+		status: 'read',
+		attachments: [
+			{
+				id: 'att1',
+				name: 'beautiful-landscape.jpg',
+				size: 2048576,
+				type: 'image/jpeg',
+				url: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop',
+				thumbnail:
+					'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=200&h=150&fit=crop'
+			}
+		],
+		reactions: [
+			{
+				id: 'react4',
+				emoji: '😍',
+				userId: '1',
+				messageId: 'msg1_3',
+				createdAt: new Date(Date.now() - 6 * 60 * 1000)
+			}
+		]
+	},
+	{
+		id: 'msg1_4',
+		chatId: '1',
+		senderId: '2',
 		content: 'Отлично! Готовлюсь к презентации',
 		timestamp: new Date(Date.now() - 5 * 60 * 1000),
 		type: 'text',
@@ -260,6 +289,35 @@ export const mockMessages: Message[] = [
 		type: 'text',
 		status: 'delivered',
 		reactions: []
+	},
+	{
+		id: 'msg2_3',
+		chatId: '2',
+		senderId: '3',
+		content: 'Вот макет нового интерфейса',
+		timestamp: new Date(Date.now() - 15 * 60 * 1000),
+		type: 'image',
+		status: 'read',
+		attachments: [
+			{
+				id: 'att2',
+				name: 'ui-mockup.png',
+				size: 3145728,
+				type: 'image/png',
+				url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&h=600&fit=crop',
+				thumbnail:
+					'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=200&h=150&fit=crop'
+			}
+		],
+		reactions: [
+			{
+				id: 'react8',
+				emoji: '👏',
+				userId: '1',
+				messageId: 'msg2_3',
+				createdAt: new Date(Date.now() - 14 * 60 * 1000)
+			}
+		]
 	},
 
 	// Сообщения в групповом чате

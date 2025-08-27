@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { get } from 'svelte/store';
 	import { browser } from '$app/environment';
+	import { onMount } from 'svelte';
 	import { formatDistanceToNow } from 'date-fns';
 	import { ru } from 'date-fns/locale';
 	import {
@@ -14,7 +15,8 @@
 		ChevronLeft,
 		Menu,
 		Sun,
-		Moon
+		Moon,
+		File
 	} from 'lucide-svelte';
 
 	// WebSocket stores
@@ -35,7 +37,10 @@
 
 	// Моковые данные для демо (в реальном приложении будут из аутентификации)
 	import { mockUsers, mockChats, mockMessages } from '$lib/mock-data';
+	import type { Reaction } from '$lib/types/chat';
 	import MessageReactions from '$lib/components/MessageReactions.svelte';
+	import FileUpload from '$lib/components/FileUpload.svelte';
+	import ImageGallery from '$lib/components/ImageGallery.svelte';
 
 	// Текущий пользователь (в реальном приложении будет из аутентификации)
 	const currentUser = mockUsers[0];
@@ -46,6 +51,15 @@
 	let typingTimeout: NodeJS.Timeout | null = null;
 	let initialized = $state(false);
 	let isDarkMode = $state(false);
+	
+	// Состояние для загрузки файлов и галереи
+	let showFileUpload = $state(false);
+	let galleryImages = $state<string[]>([]);
+	let galleryCurrentIndex = $state(0);
+	let showGallery = $state(false);
+
+	// Реактивные значения для темы
+	let themeTitle = $derived(isDarkMode ? 'Переключить на светлую тему' : 'Переключить на тёмную тему');
 
 	// Переключение темы
 	function toggleTheme() {
@@ -72,27 +86,67 @@
 	}
 
 	// Инициализация темы
-	if (browser) {
-		const savedTheme = localStorage.getItem('theme');
-		const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-		isDarkMode = savedTheme === 'dark' || (!savedTheme && prefersDark);
-		document.documentElement.classList.toggle('dark', isDarkMode);
-		
-		// Инициализируем CSS переменные
-		const root = document.documentElement;
-		if (isDarkMode) {
-			root.style.setProperty('--text-color', '#ffffff');
-			root.style.setProperty('--bg-color', '#1f2937');
-			root.style.setProperty('--border-color', '#374151');
-		} else {
-			root.style.setProperty('--text-color', '#000000');
-			root.style.setProperty('--bg-color', '#ffffff');
-			root.style.setProperty('--border-color', '#e5e7eb');
+	onMount(() => {
+		if (browser) {
+			const savedTheme = localStorage.getItem('theme');
+			const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+			isDarkMode = savedTheme === 'dark' || (!savedTheme && prefersDark);
+			document.documentElement.classList.toggle('dark', isDarkMode);
+			
+			// Инициализируем CSS переменные
+			const root = document.documentElement;
+			if (isDarkMode) {
+				root.style.setProperty('--text-color', '#ffffff');
+				root.style.setProperty('--bg-color', '#1f2937');
+				root.style.setProperty('--border-color', '#374151');
+			} else {
+				root.style.setProperty('--text-color', '#000000');
+				root.style.setProperty('--bg-color', '#ffffff');
+				root.style.setProperty('--border-color', '#e5e7eb');
+			}
+			
+			console.log('Theme initialized:', isDarkMode ? 'dark' : 'light');
+			console.log('HTML classList:', document.documentElement.classList.toString());
+			
+			// Инициализация чата
+			console.log('Browser detected, starting initialization...');
+			
+			// Сразу загружаем моковые данные для демонстрации
+			console.log('Loading mock data...');
+			chats.set(mockChats);
+			
+			// Если есть чаты, выбираем первый
+			if (mockChats.length > 0) {
+				console.log('Setting first chat as active:', mockChats[0]?.name);
+				activeChatId.set(mockChats[0]?.id || '');
+			}
+			
+			// Используем setTimeout для асинхронной инициализации
+			setTimeout(() => {
+				if (!initialized) {
+					console.log('Starting WebSocket initialization...');
+					initialized = true;
+					
+					// Инициализируем WebSocket соединение
+					initializeWebSocket().then(() => {
+						console.log('WebSocket initialized successfully');
+						// Загружаем начальные данные
+						loadInitialData();
+					}).catch((error) => {
+						console.error('Error initializing chat:', error);
+					});
+				}
+			}, 100);
+			
+			// Очистка при размонтировании
+			window.addEventListener('beforeunload', () => {
+				if (typingTimeout) {
+					clearTimeout(typingTimeout);
+				}
+				cleanupWebSocket();
+			});
 		}
-		
-		console.log('Theme initialized:', isDarkMode ? 'dark' : 'light');
-		console.log('HTML classList:', document.documentElement.classList.toString());
-	}
+	});
 
 	// Загрузка данных
 	async function loadInitialData() {
@@ -221,6 +275,44 @@
 		}
 	}
 
+	// Обработчики файлов
+	function handleFilesSelected(event: CustomEvent<globalThis.File[]>) {
+		const files = event.detail;
+		console.log('Files selected:', files);
+		
+		// Здесь можно добавить логику для отправки файлов
+		// Пока что просто закрываем загрузчик
+		showFileUpload = false;
+	}
+
+	function handleUploadComplete(event: CustomEvent<{ fileId: string; url: string }>) {
+		const { url } = event.detail;
+		console.log('File uploaded:', url);
+		
+		// Добавляем изображение в галерею для демонстрации
+		if (url) {
+			galleryImages = [...galleryImages, url];
+		}
+	}
+
+	// Обработчики галереи
+	function openImageGallery(images: string[], startIndex = 0) {
+		galleryImages = images;
+		galleryCurrentIndex = startIndex;
+		showGallery = true;
+	}
+
+	function closeImageGallery() {
+		showGallery = false;
+		galleryImages = [];
+		galleryCurrentIndex = 0;
+	}
+
+	// Открыть загрузчик файлов
+	function openFileUpload() {
+		showFileUpload = true;
+	}
+
 	// Переключение чата
 	async function selectChat(chatId: string) {
 		if (!browser) return;
@@ -246,6 +338,14 @@
 		return formatDistanceToNow(date, { addSuffix: true, locale: ru });
 	}
 
+	function formatFileSize(bytes: number) {
+		if (bytes === 0) return '0 Б';
+		const k = 1024;
+		const sizes = ['Б', 'КБ', 'МБ', 'ГБ'];
+		const i = Math.floor(Math.log(bytes) / Math.log(k));
+		return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+	}
+
 	function getUserById(userId: string) {
 		return mockUsers.find((user) => user.id === userId);
 	}
@@ -261,49 +361,6 @@
 		} else {
 			handleTyping();
 		}
-	}
-
-	// Инициализация только на клиенте
-	if (browser) {
-		console.log('Browser detected, starting initialization...');
-		
-		// Сразу загружаем моковые данные для демонстрации
-		console.log('Loading mock data...');
-		chats.set(mockChats);
-		
-		// Если есть чаты, выбираем первый
-						if (mockChats.length > 0) {
-					console.log('Setting first chat as active:', mockChats[0]?.name);
-					activeChatId.set(mockChats[0]?.id || '');
-				}
-		
-		// Используем setTimeout для асинхронной инициализации
-		setTimeout(() => {
-			if (!initialized) {
-				console.log('Starting WebSocket initialization...');
-				initialized = true;
-				
-				// Инициализируем WebSocket соединение
-				initializeWebSocket().then(() => {
-					console.log('WebSocket initialized successfully');
-					// Загружаем начальные данные
-					loadInitialData();
-				}).catch((error) => {
-					console.error('Error initializing chat:', error);
-				});
-			}
-		}, 100);
-	}
-
-	// Очистка при размонтировании (только на клиенте)
-	if (browser) {
-		// Используем beforeunload для очистки
-		window.addEventListener('beforeunload', () => {
-			if (typingTimeout) {
-				clearTimeout(typingTimeout);
-			}
-			cleanupWebSocket();
-		});
 	}
 </script>
 
@@ -337,7 +394,7 @@
 					</div>
 				{/if}
 				<div class="ml-auto flex items-center gap-2">
-					<button class="btn-ghost" onclick={toggleTheme} title={isDarkMode ? 'Переключить на светлую тему' : 'Переключить на тёмную тему'}>
+					<button class="btn-ghost" onclick={toggleTheme} title={themeTitle}>
 						{#if isDarkMode}
 							<Sun class="h-4 w-4" />
 						{:else}
@@ -444,7 +501,7 @@
 				</div>
 
 				<div class="ml-auto flex items-center gap-2">
-					<button class="btn-ghost" onclick={toggleTheme} title={isDarkMode ? 'Переключить на светлую тему' : 'Переключить на тёмную тему'}>
+					<button class="btn-ghost" onclick={toggleTheme} title={themeTitle}>
 						{#if isDarkMode}
 							<Sun class="h-5 w-5" />
 						{:else}
@@ -483,6 +540,41 @@
 
 							<div class="message-bubble {isOwn ? 'sent' : 'received'}">
 								{message.content}
+								
+								<!-- Отображение изображений -->
+								{#if message.type === 'image' && message.attachments && message.attachments.length > 0}
+									<div class="message-images">
+										{#each message.attachments as attachment (attachment.id)}
+											{#if attachment.type.startsWith('image/')}
+												<button
+													class="image-container"
+													onclick={() => openImageGallery([attachment.url], 0)}
+													onkeydown={(e) => e.key === 'Enter' && openImageGallery([attachment.url], 0)}
+													title="Нажмите для увеличения"
+												>
+													<img
+														src={attachment.thumbnail || attachment.url}
+														alt={attachment.name}
+														class="message-image"
+													/>
+													<div class="image-overlay">
+														<span class="image-name">{attachment.name}</span>
+													</div>
+												</button>
+											{:else}
+												<div class="file-attachment">
+													<div class="file-icon">
+														<File class="h-6 w-6" />
+													</div>
+													<div class="file-info">
+														<span class="file-name">{attachment.name}</span>
+														<span class="file-size">{formatFileSize(attachment.size)}</span>
+													</div>
+												</div>
+											{/if}
+										{/each}
+									</div>
+								{/if}
 							</div>
 
 							<div class="mt-1 flex items-center gap-2">
@@ -530,7 +622,7 @@
 			<!-- Поле ввода -->
 			<div class="chat-input">
 				<div class="flex items-end gap-2">
-					<button class="btn-ghost">
+					<button class="btn-ghost" onclick={openFileUpload} title="Прикрепить файл">
 						<Paperclip class="h-5 w-5" />
 					</button>
 					<button class="btn-ghost">
@@ -562,4 +654,24 @@
 			</div>
 		{/if}
 	</main>
+
+	<!-- Компонент загрузки файлов -->
+	{#if showFileUpload}
+		<div class="file-upload-modal">
+			<div class="file-upload-content">
+				<FileUpload
+					on:filesSelected={handleFilesSelected}
+					on:uploadComplete={handleUploadComplete}
+				/>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Галерея изображений -->
+	<ImageGallery
+		images={galleryImages}
+		currentIndex={galleryCurrentIndex}
+		isOpen={showGallery}
+		on:close={closeImageGallery}
+	/>
 </div>
