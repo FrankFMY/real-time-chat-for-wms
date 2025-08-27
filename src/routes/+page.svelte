@@ -16,7 +16,8 @@
 		Menu,
 		Sun,
 		Moon,
-		File
+		File,
+		Users as UsersIcon
 	} from 'lucide-svelte';
 
 	// WebSocket stores
@@ -45,6 +46,8 @@
 	import ReplySelector from '$lib/components/ReplySelector.svelte';
 	import MessageReply from '$lib/components/MessageReply.svelte';
 	import ForwardMessage from '$lib/components/ForwardMessage.svelte';
+	import CreateGroupModal from '$lib/components/CreateGroupModal.svelte';
+	import GroupInfoModal from '$lib/components/GroupInfoModal.svelte';
 
 	// Текущий пользователь (в реальном приложении будет из аутентификации)
 	const currentUser = mockUsers[0];
@@ -70,6 +73,12 @@
 	let showForwardModal = $state(false);
 	let messageToForward = $state<Message | null>(null);
 
+	// Состояние для создания группы
+	let showCreateGroupModal = $state(false);
+
+	// Состояние для информации о группе
+	let showGroupInfoModal = $state(false);
+
 	// Реактивные значения для темы
 	let themeTitle = $derived(
 		isDarkMode ? 'Переключить на светлую тему' : 'Переключить на тёмную тему'
@@ -88,10 +97,18 @@
 				root.style.setProperty('--text-color', '#ffffff');
 				root.style.setProperty('--bg-color', '#1f2937');
 				root.style.setProperty('--border-color', '#374151');
+				root.style.setProperty('--hover-bg-light', '#374151');
+				root.style.setProperty('--hover-bg-dark', '#4b5563');
+				root.style.setProperty('--active-hover-bg-light', '#1e3a8a');
+				root.style.setProperty('--active-hover-bg-dark', '#1e40af');
 			} else {
 				root.style.setProperty('--text-color', '#000000');
 				root.style.setProperty('--bg-color', '#ffffff');
 				root.style.setProperty('--border-color', '#e5e7eb');
+				root.style.setProperty('--hover-bg-light', '#f9fafb');
+				root.style.setProperty('--hover-bg-dark', '#374151');
+				root.style.setProperty('--active-hover-bg-light', '#dbeafe');
+				root.style.setProperty('--active-hover-bg-dark', '#1e3a8a');
 			}
 
 			console.log('Theme toggled:', isDarkMode ? 'dark' : 'light');
@@ -113,10 +130,18 @@
 				root.style.setProperty('--text-color', '#ffffff');
 				root.style.setProperty('--bg-color', '#1f2937');
 				root.style.setProperty('--border-color', '#374151');
+				root.style.setProperty('--hover-bg-light', '#374151');
+				root.style.setProperty('--hover-bg-dark', '#4b5563');
+				root.style.setProperty('--active-hover-bg-light', '#1e3a8a');
+				root.style.setProperty('--active-hover-bg-dark', '#1e40af');
 			} else {
 				root.style.setProperty('--text-color', '#000000');
 				root.style.setProperty('--bg-color', '#ffffff');
 				root.style.setProperty('--border-color', '#e5e7eb');
+				root.style.setProperty('--hover-bg-light', '#f9fafb');
+				root.style.setProperty('--hover-bg-dark', '#374151');
+				root.style.setProperty('--active-hover-bg-light', '#dbeafe');
+				root.style.setProperty('--active-hover-bg-dark', '#1e3a8a');
 			}
 
 			console.log('Theme initialized:', isDarkMode ? 'dark' : 'light');
@@ -383,10 +408,10 @@
 
 	// Обработчик копирования сообщений
 	function handleCopyMessage(event: CustomEvent<{ messageId: string; content: string }>) {
-		const { content } = event.detail;
+		const { content: messageContent } = event.detail;
 
 		// Показываем уведомление о копировании
-		console.log('Сообщение скопировано в буфер обмена');
+		console.log('Сообщение скопировано в буфер обмена:', messageContent);
 
 		// Можно добавить toast уведомление
 		if (browser) {
@@ -439,6 +464,169 @@
 	function handleForwardCancel() {
 		showForwardModal = false;
 		messageToForward = null;
+	}
+
+	// Обработчики создания группы
+	function openCreateGroupModal() {
+		showCreateGroupModal = true;
+	}
+
+	function handleGroupCreated(
+		event: CustomEvent<{ name: string; participants: string[]; avatar?: string }>
+	) {
+		const { name, participants, avatar } = event.detail;
+		console.log('Группа создана:', { name, participants, avatar });
+
+		// Закрываем модальное окно
+		showCreateGroupModal = false;
+
+		// Здесь можно добавить логику для перехода к новому чату
+		// или обновления списка чатов
+	}
+
+	function handleGroupCancel() {
+		showCreateGroupModal = false;
+	}
+
+	// Обработчики информации о группе
+	function openGroupInfo() {
+		if ($activeChat && $activeChat.type === 'group') {
+			showGroupInfoModal = true;
+		}
+	}
+
+	function handleGroupInfoClose() {
+		showGroupInfoModal = false;
+	}
+
+	// Обработчики управления участниками группы
+	async function handleAddParticipant(event: CustomEvent<{ userId: string; role: string }>) {
+		const { userId, role } = event.detail;
+
+		try {
+			const response = await fetch(`/api/chat/${$activeChatId}/participants`, {
+				method: 'POST',
+				credentials: 'include',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ userId, role })
+			});
+
+			if (response.ok) {
+				const { participant } = await response.json();
+				console.log('Участник добавлен:', participant);
+
+				// Обновляем чат в моковых данных
+				const chatIndex = mockChats.findIndex((c) => c.id === $activeChatId);
+				if (chatIndex !== -1) {
+					const chat = mockChats[chatIndex];
+					if (chat) {
+						chat.participants.push(userId);
+
+						if (!chat.groupParticipants) {
+							chat.groupParticipants = [];
+						}
+
+						chat.groupParticipants.push({
+							userId,
+							role: role as 'admin' | 'moderator' | 'member',
+							joinedAt: new Date(),
+							addedBy: currentUser?.id || '1'
+						});
+					}
+				}
+
+				// Обновляем store
+				chats.update((current) => ({ ...current }));
+			} else {
+				const error = await response.json();
+				console.error('Ошибка добавления участника:', error.error);
+				alert(error.error);
+			}
+		} catch (error) {
+			console.error('Ошибка при добавлении участника:', error);
+			alert('Ошибка при добавлении участника');
+		}
+	}
+
+	async function handleRemoveParticipant(event: CustomEvent<{ userId: string }>) {
+		const { userId } = event.detail;
+
+		try {
+			const response = await fetch(`/api/chat/${$activeChatId}/participants?userId=${userId}`, {
+				method: 'DELETE',
+				credentials: 'include'
+			});
+
+			if (response.ok) {
+				console.log('Участник удален:', userId);
+
+				// Обновляем чат в моковых данных
+				const chatIndex = mockChats.findIndex((c) => c.id === $activeChatId);
+				if (chatIndex !== -1) {
+					const chat = mockChats[chatIndex];
+					if (chat) {
+						chat.participants = chat.participants.filter((id) => id !== userId);
+
+						if (chat.groupParticipants) {
+							chat.groupParticipants = chat.groupParticipants.filter((gp) => gp.userId !== userId);
+						}
+					}
+				}
+
+				// Обновляем store
+				chats.update((current) => ({ ...current }));
+			} else {
+				const error = await response.json();
+				console.error('Ошибка удаления участника:', error.error);
+				alert(error.error);
+			}
+		} catch (error) {
+			console.error('Ошибка при удалении участника:', error);
+			alert('Ошибка при удалении участника');
+		}
+	}
+
+	async function handleUpdateRole(event: CustomEvent<{ userId: string; role: string }>) {
+		const { userId, role } = event.detail;
+
+		try {
+			const response = await fetch(`/api/chat/${$activeChatId}/participants`, {
+				method: 'PATCH',
+				credentials: 'include',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ userId, role })
+			});
+
+			if (response.ok) {
+				console.log('Роль обновлена:', { userId, role });
+
+				// Обновляем чат в моковых данных
+				const chatIndex = mockChats.findIndex((c) => c.id === $activeChatId);
+				if (chatIndex !== -1) {
+					const chat = mockChats[chatIndex];
+					if (chat && chat.groupParticipants) {
+						const participant = chat.groupParticipants.find((gp) => gp.userId === userId);
+						if (participant) {
+							participant.role = role as 'admin' | 'moderator' | 'member';
+						}
+					}
+				}
+
+				// Обновляем store
+				chats.update((current) => ({ ...current }));
+			} else {
+				const error = await response.json();
+				console.error('Ошибка обновления роли:', error.error);
+				alert(error.error);
+			}
+		} catch (error) {
+			console.error('Ошибка при обновлении роли:', error);
+			alert('Ошибка при обновлении роли');
+		}
 	}
 
 	function handleCancelEdit(event: CustomEvent<{ messageId: string }>) {
@@ -599,12 +787,19 @@
 				</div>
 			</header>
 
-			<!-- Поиск -->
-			<div class="p-4">
+			<!-- Поиск и создание группы -->
+			<div class="space-y-3 p-4">
 				<div class="relative">
 					<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
 					<input type="text" placeholder="Поиск чатов..." class="input pl-10" />
 				</div>
+				<button
+					class="btn btn-primary flex w-full items-center justify-center gap-2"
+					onclick={openCreateGroupModal}
+				>
+					<UsersIcon class="h-4 w-4" />
+					Создать группу
+				</button>
 			</div>
 
 			<!-- Список чатов -->
@@ -617,9 +812,8 @@
 							: null}
 
 					<button
-						class="flex w-full items-center gap-3 p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-700 {$activeChatId ===
-						chat.id
-							? 'bg-blue-50 dark:bg-blue-900/20'
+						class="chat-item flex w-full items-center gap-3 p-4 text-left {$activeChatId === chat.id
+							? 'active bg-blue-50 dark:bg-blue-900/20'
 							: ''}"
 						onclick={() => selectChat(chat.id)}
 					>
@@ -630,13 +824,27 @@
 									class="status-indicator {otherUser.status} absolute -right-0.5 -bottom-0.5"
 								></div>
 							{/if}
+							{#if chat.type === 'group'}
+								<div class="absolute -right-0.5 -bottom-0.5 rounded-full bg-blue-500 p-0.5">
+									<UsersIcon class="h-3 w-3 text-white" />
+								</div>
+							{/if}
 						</div>
 
 						<div class="min-w-0 flex-1">
 							<div class="flex items-center justify-between">
-								<h3 class="truncate font-semibold" style="color: var(--text-color);">
-									{chat.name}
-								</h3>
+								<div class="flex items-center gap-2">
+									<h3 class="truncate font-semibold" style="color: var(--text-color);">
+										{chat.name}
+									</h3>
+									{#if chat.type === 'group'}
+										<span
+											class="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+										>
+											{chat.participants.length}
+										</span>
+									{/if}
+								</div>
 								{#if lastMessage}
 									<span class="text-xs text-gray-500 dark:text-gray-400">
 										{formatTime(lastMessage.timestamp)}
@@ -648,6 +856,8 @@
 								<p class="truncate text-sm text-gray-500 dark:text-gray-400">
 									{lastMessage.content}
 								</p>
+							{:else if chat.type === 'group'}
+								<p class="truncate text-sm text-gray-500 dark:text-gray-400">Групповой чат</p>
 							{/if}
 						</div>
 
@@ -706,7 +916,7 @@
 					<button class="btn-ghost">
 						<Video class="h-5 w-5" />
 					</button>
-					<button class="btn-ghost">
+					<button class="btn-ghost" onclick={openGroupInfo} title="Информация о группе">
 						<Info class="h-5 w-5" />
 					</button>
 				</div>
@@ -919,6 +1129,30 @@
 			on:cancel={handleForwardCancel}
 		/>
 	{/if}
+
+	<!-- Модальное окно создания группы -->
+	<CreateGroupModal
+		isOpen={showCreateGroupModal}
+		availableUsers={mockUsers}
+		on:create={handleGroupCreated}
+		on:cancel={handleGroupCancel}
+	/>
+
+	<!-- Модальное окно информации о группе -->
+	<GroupInfoModal
+		isOpen={showGroupInfoModal}
+		chat={$activeChat || null}
+		participants={mockUsers.filter((user) => $activeChat?.participants.includes(user.id))}
+		currentUser={currentUser || null}
+		availableUsers={mockUsers}
+		on:close={handleGroupInfoClose}
+		on:edit={() => console.log('Редактировать группу')}
+		on:leave={() => console.log('Покинуть группу')}
+		on:delete={() => console.log('Удалить группу')}
+		on:addParticipant={handleAddParticipant}
+		on:removeParticipant={handleRemoveParticipant}
+		on:updateRole={handleUpdateRole}
+	/>
 </div>
 
 <style>

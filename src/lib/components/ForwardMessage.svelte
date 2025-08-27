@@ -8,11 +8,7 @@
 		cancel: void;
 	}>();
 
-	interface Props {
-		message: Message;
-		chats: Chat[];
-		isOpen: boolean;
-	}
+	// Props interface removed as it's not used
 
 	let { message, chats, isOpen } = $props();
 

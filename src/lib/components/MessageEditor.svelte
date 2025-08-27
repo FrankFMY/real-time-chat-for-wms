@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
-	import { Trash2, Edit3, History, X, Check, Copy, Share2 } from 'lucide-svelte';
+	import { Trash2, Edit3, X, Check, Copy, Share2 } from 'lucide-svelte';
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	import type { Message } from '$lib/types/chat';
 
 	const dispatch = createEventDispatcher<{
@@ -13,11 +14,7 @@
 		forward: { messageId: string; content: string };
 	}>();
 
-	interface Props {
-		message: Message;
-		currentUserId: string;
-		editTimeLimit?: number; // в минутах
-	}
+	// Props interface removed as it's not used
 
 	let { message, currentUserId, editTimeLimit = 15 } = $props();
 
@@ -58,9 +55,11 @@
 		isEditing = false;
 	}
 
-	// Показываем историю изменений
+	// Показываем историю изменений (заглушка)
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	function showHistory() {
-		dispatch('showHistory', { messageId: message.id });
+		// TODO: Implement history functionality
+		console.log('History functionality not implemented yet');
 	}
 
 	// Отвечаем на сообщение

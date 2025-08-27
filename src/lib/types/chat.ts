@@ -69,12 +69,25 @@ export interface Attachment {
 	thumbnail?: string;
 }
 
+// Роли участников группы
+export type ParticipantRole = 'admin' | 'moderator' | 'member';
+
+// Участник группы с ролью
+export interface GroupParticipant {
+	userId: string;
+	role: ParticipantRole;
+	joinedAt: Date;
+	addedBy?: string;
+}
+
 // Типы чатов
 export interface Chat {
 	id: string;
 	name: string;
 	type: 'direct' | 'group' | 'channel';
 	participants: string[];
+	// Для групповых чатов - детальная информация об участниках
+	groupParticipants?: GroupParticipant[];
 	lastMessage?: Message;
 	unreadCount: number;
 	createdAt: Date;

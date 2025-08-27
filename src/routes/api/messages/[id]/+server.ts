@@ -41,7 +41,8 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
 		mockMessages[messageIndex] = updatedMessage;
 
 		return json({ message: updatedMessage });
-	} catch (error) {
+	} catch (err) {
+		console.error('Error processing request:', err);
 		return json({ error: 'Ошибка при обработке запроса' }, { status: 400 });
 	}
 };

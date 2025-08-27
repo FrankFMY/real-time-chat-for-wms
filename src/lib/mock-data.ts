@@ -110,6 +110,32 @@ export const mockChats: Chat[] = [
 		avatar:
 			'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=150&h=150&fit=crop&crop=faces',
 		participants: ['1', '2', '3', '5'],
+		groupParticipants: [
+			{
+				userId: '1',
+				role: 'admin',
+				joinedAt: new Date('2024-01-10'),
+				addedBy: '1'
+			},
+			{
+				userId: '2',
+				role: 'moderator',
+				joinedAt: new Date('2024-01-10'),
+				addedBy: '1'
+			},
+			{
+				userId: '3',
+				role: 'member',
+				joinedAt: new Date('2024-01-10'),
+				addedBy: '1'
+			},
+			{
+				userId: '5',
+				role: 'member',
+				joinedAt: new Date('2024-01-10'),
+				addedBy: '1'
+			}
+		],
 		createdAt: new Date('2024-01-10'),
 		updatedAt: new Date(),
 		lastMessage: {

@@ -7,6 +7,10 @@
 	--text-color: #000000;
 	--bg-color: #ffffff;
 	--border-color: #e5e7eb;
+	--hover-bg-light: #f9fafb;
+	--hover-bg-dark: #374151;
+	--active-hover-bg-light: #dbeafe;
+	--active-hover-bg-dark: #1e3a8a;
 }
 
 /* Base styles */
@@ -74,6 +78,40 @@ body {
 .dark ::selection {
 	background-color: #1e3a8a;
 	color: #dbeafe;
+}
+
+/* Hover utilities using CSS variables */
+.hover-bg-light {
+	background-color: var(--hover-bg-light);
+}
+
+.hover-bg-dark {
+	background-color: var(--hover-bg-dark);
+}
+
+.active-hover-bg-light {
+	background-color: var(--active-hover-bg-light);
+}
+
+.active-hover-bg-dark {
+	background-color: var(--active-hover-bg-dark);
+}
+
+/* Explicit hover styles for chat items */
+.chat-item:hover {
+	background-color: #f3f4f6;
+}
+
+.dark .chat-item:hover {
+	background-color: #374151;
+}
+
+.chat-item.active:hover {
+	background-color: #dbeafe;
+}
+
+.dark .chat-item.active:hover {
+	background-color: #1e3a8a;
 }
 
 /* Chat specific components */
