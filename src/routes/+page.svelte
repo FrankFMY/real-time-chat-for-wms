@@ -37,13 +37,14 @@
 
 	// Моковые данные для демо (в реальном приложении будут из аутентификации)
 	import { mockUsers, mockChats, mockMessages } from '$lib/mock-data';
-	import type { Reaction, ReplyMessage } from '$lib/types/chat';
+	import type { Reaction, ReplyMessage, Message } from '$lib/types/chat';
 	import MessageReactions from '$lib/components/MessageReactions.svelte';
 	import MessageEditor from '$lib/components/MessageEditor.svelte';
 	import FileUpload from '$lib/components/FileUpload.svelte';
 	import ImageGallery from '$lib/components/ImageGallery.svelte';
 	import ReplySelector from '$lib/components/ReplySelector.svelte';
 	import MessageReply from '$lib/components/MessageReply.svelte';
+	import ForwardMessage from '$lib/components/ForwardMessage.svelte';
 
 	// Текущий пользователь (в реальном приложении будет из аутентификации)
 	const currentUser = mockUsers[0];
@@ -64,6 +65,10 @@
 	// Состояние для ответов на сообщения
 	let showReplySelector = $state(false);
 	let selectedReplyMessage = $state<ReplyMessage | null>(null);
+
+	// Состояние для пересылки сообщений
+	let showForwardModal = $state(false);
+	let messageToForward = $state<Message | null>(null);
 
 	// Реактивные значения для темы
 	let themeTitle = $derived(
@@ -343,6 +348,97 @@
 			console.error('Ошибка при редактировании сообщения:', error);
 			alert('Ошибка при редактировании сообщения');
 		}
+	}
+
+	// Обработчик удаления сообщений
+	async function handleDeleteMessage(event: CustomEvent<{ messageId: string }>) {
+		const { messageId } = event.detail;
+
+		try {
+			const response = await fetch(`/api/messages/${messageId}`, {
+				method: 'DELETE'
+			});
+
+			if (response.ok) {
+				// Удаляем сообщение из моковых данных
+				const messageIndex = mockMessages.findIndex((m) => m.id === messageId);
+				if (messageIndex !== -1) {
+					mockMessages.splice(messageIndex, 1);
+				}
+
+				// Обновляем store
+				messages.update((current) => ({ ...current }));
+
+				console.log('Сообщение успешно удалено');
+			} else {
+				const error = await response.json();
+				console.error('Ошибка удаления:', error.error);
+				alert(error.error);
+			}
+		} catch (error) {
+			console.error('Ошибка при удалении сообщения:', error);
+			alert('Ошибка при удалении сообщения');
+		}
+	}
+
+	// Обработчик копирования сообщений
+	function handleCopyMessage(event: CustomEvent<{ messageId: string; content: string }>) {
+		const { content } = event.detail;
+
+		// Показываем уведомление о копировании
+		console.log('Сообщение скопировано в буфер обмена');
+
+		// Можно добавить toast уведомление
+		if (browser) {
+			// Простое уведомление (в реальном приложении лучше использовать toast)
+			alert('Сообщение скопировано в буфер обмена');
+		}
+	}
+
+	// Обработчик пересылки сообщений
+	function handleForwardMessage(event: CustomEvent<{ messageId: string; content: string }>) {
+		const { messageId } = event.detail;
+
+		// Находим сообщение для пересылки
+		const message = mockMessages.find((m) => m.id === messageId);
+		if (message) {
+			messageToForward = message;
+			showForwardModal = true;
+		}
+	}
+
+	// Обработчик выбора чата для пересылки
+	function handleForwardToChat(event: CustomEvent<{ chatId: string; message: Message }>) {
+		const { chatId, message } = event.detail;
+
+		// Здесь можно добавить логику отправки сообщения в выбранный чат
+		console.log('Пересылка сообщения в чат:', chatId);
+
+		// Создаем новое сообщение для пересылки
+		const forwardedMessage: Message = {
+			...message,
+			id: `msg-${Date.now()}`,
+			chatId,
+			timestamp: new Date(),
+			content: `Переслано: ${message.content}`,
+			status: 'sending'
+		};
+
+		// Добавляем в моковые данные
+		mockMessages.push(forwardedMessage);
+
+		// Обновляем store
+		messages.update((current) => ({ ...current }));
+
+		// Закрываем модальное окно
+		showForwardModal = false;
+		messageToForward = null;
+	}
+
+	// Закрытие модального окна пересылки
+	function handleForwardCancel() {
+		showForwardModal = false;
+		messageToForward = null;
 	}
 
 	function handleCancelEdit(event: CustomEvent<{ messageId: string }>) {
@@ -645,6 +741,9 @@
 										on:cancel={handleCancelEdit}
 										on:showHistory={handleShowHistory}
 										on:reply={handleReply}
+										on:delete={handleDeleteMessage}
+										on:copy={handleCopyMessage}
+										on:forward={handleForwardMessage}
 									/>
 								{:else}
 									{message.content}
@@ -807,6 +906,17 @@
 			currentUserId={currentUser?.id || '1'}
 			onClose={handleReplyCancel}
 			on:select={handleReplySelect}
+		/>
+	{/if}
+
+	<!-- Модальное окно пересылки сообщений -->
+	{#if showForwardModal && messageToForward}
+		<ForwardMessage
+			message={messageToForward}
+			chats={$chats}
+			isOpen={showForwardModal}
+			on:forward={handleForwardToChat}
+			on:cancel={handleForwardCancel}
 		/>
 	{/if}
 </div>

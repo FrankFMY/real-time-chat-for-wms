@@ -1,233 +1,367 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
-	import { browser } from '$app/environment';
-	import { onMount } from 'svelte';
-	import { Send, X, RotateCcw, Edit, History, CheckCircle, Reply } from 'lucide-svelte';
-	import type { Message, MessageEditHistory } from '$lib/types/chat';
-	import MessageReply from './MessageReply.svelte';
+	import { Trash2, Edit3, History, X, Check, Copy, Share2 } from 'lucide-svelte';
+	import type { Message } from '$lib/types/chat';
 
 	const dispatch = createEventDispatcher<{
 		save: { messageId: string; content: string };
 		cancel: { messageId: string };
 		showHistory: { messageId: string };
 		reply: { messageId: string };
+		delete: { messageId: string };
+		copy: { messageId: string; content: string };
+		forward: { messageId: string; content: string };
 	}>();
 
-	const {
-		message,
-		currentUserId,
-		editTimeLimit = 15
-	} = $props<{
+	interface Props {
 		message: Message;
 		currentUserId: string;
-		editTimeLimit?: number;
-	}>();
+		editTimeLimit?: number; // в минутах
+	}
 
-	let editedContent = $state(message.content);
+	let { message, currentUserId, editTimeLimit = 15 } = $props();
+
 	let isEditing = $state(false);
-	let showHistory = $state(false);
-	let timeLeft = $state<number | null>(null);
-	let editTimer: NodeJS.Timeout | null = null;
-	// Убираем неиспользуемую переменную
+	let editedContent = $state(message.content);
+	let showDeleteConfirm = $state(false);
+	let showContextMenu = $state(false);
+	let contextMenuPosition = $state({ x: 0, y: 0 });
 
 	// Проверяем, можно ли редактировать сообщение
 	let canEdit = $derived(
-		message.senderId === currentUserId &&
-			(!message.editedAt || Date.now() - message.editedAt.getTime() < editTimeLimit * 60 * 1000)
+		editTimeLimit === 0 ||
+			new Date() < new Date(message.timestamp.getTime() + editTimeLimit * 60 * 1000)
 	);
 
-	// Форматирование оставшегося времени
-	let timeLeftFormatted = $derived(
-		timeLeft !== null
-			? `${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}`
-			: null
-	);
+	// Проверяем, является ли сообщение собственным
+	let isOwnMessage = $derived(message.senderId === currentUserId);
 
-	onMount(() => {
-		if (browser && message.editedAt) {
-			updateTimeLeft();
-			editTimer = setInterval(updateTimeLeft, 1000);
-		}
-
-		return () => {
-			if (editTimer) {
-				clearInterval(editTimer);
-			}
-		};
-	});
-
-	function updateTimeLeft() {
-		if (!message.editedAt) return;
-
-		const elapsed = Date.now() - message.editedAt.getTime();
-		const limitMs = editTimeLimit * 60 * 1000;
-		const remaining = Math.max(0, Math.floor((limitMs - elapsed) / 1000));
-
-		timeLeft = remaining > 0 ? remaining : null;
-
-		if (remaining <= 0 && editTimer) {
-			clearInterval(editTimer);
-		}
-	}
-
-	function startEditing() {
+	// Начинаем редактирование
+	function startEdit() {
 		if (!canEdit) return;
 		isEditing = true;
 		editedContent = message.content;
 	}
 
-	function cancelEditing() {
+	// Отменяем редактирование
+	function cancelEdit() {
 		isEditing = false;
 		editedContent = message.content;
 		dispatch('cancel', { messageId: message.id });
 	}
 
+	// Сохраняем изменения
 	function saveEdit() {
-		if (!editedContent.trim() || editedContent === message.content) {
-			cancelEditing();
-			return;
-		}
+		if (!editedContent.trim()) return;
 
-		dispatch('save', {
-			messageId: message.id,
-			content: editedContent.trim()
-		});
+		dispatch('save', { messageId: message.id, content: editedContent.trim() });
 		isEditing = false;
 	}
 
-	function handleKeydown(event: KeyboardEvent) {
-		if (event.key === 'Enter' && !event.shiftKey) {
-			event.preventDefault();
-			saveEdit();
-		} else if (event.key === 'Escape') {
-			cancelEditing();
-		}
-	}
-
-	function showEditHistory() {
+	// Показываем историю изменений
+	function showHistory() {
 		dispatch('showHistory', { messageId: message.id });
 	}
 
-	function restoreVersion(historyItem: MessageEditHistory) {
-		editedContent = historyItem.content;
-		saveEdit();
-	}
-
-	function handleReply() {
+	// Отвечаем на сообщение
+	function replyToMessage() {
 		dispatch('reply', { messageId: message.id });
 	}
 
-	// Убираем неиспользуемую функцию
+	// Удаляем сообщение
+	function deleteMessage() {
+		dispatch('delete', { messageId: message.id });
+		showDeleteConfirm = false;
+	}
+
+	// Копируем текст сообщения
+	function copyMessage() {
+		try {
+			if (typeof navigator !== 'undefined' && navigator.clipboard) {
+				navigator.clipboard.writeText(message.content).catch(() => {
+					// Fallback для браузеров без поддержки clipboard API
+					console.warn('Clipboard API не поддерживается');
+				});
+			}
+		} catch (error) {
+			console.warn('Ошибка при копировании в буфер обмена:', error);
+		}
+		dispatch('copy', { messageId: message.id, content: message.content });
+		showContextMenu = false;
+	}
+
+	// Пересылаем сообщение
+	function forwardMessage() {
+		dispatch('forward', { messageId: message.id, content: message.content });
+		showContextMenu = false;
+	}
+
+	// Показываем контекстное меню
+	function showContextMenuHandler(event: MouseEvent) {
+		event.preventDefault();
+		contextMenuPosition = { x: event.clientX, y: event.clientY };
+		showContextMenu = true;
+	}
+
+	// Обработчик клавиш
+	function handleKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape') {
+			if (isEditing) {
+				cancelEdit();
+			} else if (showContextMenu) {
+				showContextMenu = false;
+			}
+		}
+	}
+
+	// Обработчик кликов для скрытия контекстного меню
+	function handleClick(event: MouseEvent) {
+		const target = event.target as HTMLElement;
+		if (!target.closest('.context-menu') && !target.closest('.message-content')) {
+			showContextMenu = false;
+		}
+	}
+
+	// Обработчик клавиатуры для оверлея
+	function handleOverlayKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape') {
+			showDeleteConfirm = false;
+		}
+	}
 </script>
 
-<div class="message-editor">
+<svelte:window onkeydown={handleKeydown} onclick={handleClick} />
+
+<div class="message-editor" role="region">
 	{#if isEditing}
 		<!-- Режим редактирования -->
 		<div class="edit-mode">
-			<div class="edit-header">
-				<span class="edit-label">Редактирование сообщения</span>
-				{#if timeLeftFormatted}
-					<span class="time-left">Осталось: {timeLeftFormatted}</span>
-				{/if}
-			</div>
-
-			<div class="edit-content">
-				<textarea
-					bind:value={editedContent}
-					onkeydown={handleKeydown}
-					class="edit-textarea"
-					placeholder="Введите текст сообщения..."
-					rows="1"
-				></textarea>
-
-				<div class="edit-actions">
-					<button
-						class="btn-save"
-						onclick={saveEdit}
-						disabled={!editedContent.trim() || editedContent === message.content}
-						title="Сохранить изменения"
-					>
-						<Send class="h-4 w-4" />
-					</button>
-					<button class="btn-cancel" onclick={cancelEditing} title="Отменить редактирование">
-						<X class="h-4 w-4" />
-					</button>
-				</div>
+			<textarea
+				bind:value={editedContent}
+				class="edit-textarea"
+				placeholder="Редактировать сообщение..."
+				onkeydown={(e) => {
+					if (e.key === 'Enter' && !e.shiftKey) {
+						e.preventDefault();
+						saveEdit();
+					} else if (e.key === 'Escape') {
+						e.preventDefault();
+						cancelEdit();
+					}
+				}}
+				aria-label="Редактировать сообщение"
+			></textarea>
+			<div class="edit-actions">
+				<button
+					class="btn-icon btn-success"
+					onclick={saveEdit}
+					title="Сохранить"
+					aria-label="Сохранить изменения"
+				>
+					<Check class="h-4 w-4" aria-hidden="true" />
+				</button>
+				<button
+					class="btn-icon btn-secondary"
+					onclick={cancelEdit}
+					title="Отменить"
+					aria-label="Отменить редактирование"
+				>
+					<X class="h-4 w-4" aria-hidden="true" />
+				</button>
 			</div>
 		</div>
 	{:else}
 		<!-- Обычный режим отображения -->
-		{#if message.replyToMessage}
-			<MessageReply replyMessage={message.replyToMessage} />
-		{/if}
-		<div class="message-content">
+		<button
+			class="message-content"
+			role="textbox"
+			tabindex="0"
+			oncontextmenu={showContextMenuHandler}
+			onclick={() => {
+				// Можно добавить действие по умолчанию
+			}}
+			onkeydown={(e) => {
+				if (e.key === 'Enter' || e.key === ' ') {
+					e.preventDefault();
+					// Можно добавить действие по умолчанию
+				}
+			}}
+			aria-label="Сообщение"
+		>
 			{message.content}
 			{#if message.edited}
-				<span class="edited-indicator" title="Сообщение отредактировано">
-					<CheckCircle class="h-3 w-3" />
-					отредактировано
-				</span>
+				<span class="edited-indicator">(отредактировано)</span>
 			{/if}
-		</div>
+		</button>
 
-		<!-- Кнопки действий -->
-		<div class="message-actions">
-			<button class="action-btn" onclick={handleReply} title="Ответить на сообщение">
-				<Reply class="mr-1 h-3 w-3" />
-				Ответить
-			</button>
-
-			{#if message.senderId === currentUserId}
+		<!-- Действия с сообщением -->
+		{#if isOwnMessage}
+			<div class="message-actions" role="toolbar" aria-label="Действия с сообщением">
 				{#if canEdit}
-					<button class="action-btn" onclick={startEditing} title="Редактировать сообщение">
-						<Edit class="mr-1 h-3 w-3" />
-						Редактировать
+					<button
+						class="btn-icon"
+						onclick={startEdit}
+						title="Редактировать"
+						aria-label="Редактировать сообщение"
+					>
+						<Edit3 class="h-3 w-3" aria-hidden="true" />
 					</button>
 				{/if}
+				<button
+					class="btn-icon"
+					onclick={replyToMessage}
+					title="Ответить"
+					aria-label="Ответить на сообщение"
+				>
+					<Share2 class="h-3 w-3" aria-hidden="true" />
+				</button>
+				<button
+					class="btn-icon"
+					onclick={copyMessage}
+					title="Копировать"
+					aria-label="Копировать сообщение"
+				>
+					<Copy class="h-3 w-3" aria-hidden="true" />
+				</button>
+				<button
+					class="btn-icon btn-danger"
+					onclick={() => (showDeleteConfirm = true)}
+					title="Удалить"
+					aria-label="Удалить сообщение"
+				>
+					<Trash2 class="h-3 w-3" aria-hidden="true" />
+				</button>
+			</div>
+		{:else}
+			<div class="message-actions" role="toolbar" aria-label="Действия с сообщением">
+				<button
+					class="btn-icon"
+					onclick={replyToMessage}
+					title="Ответить"
+					aria-label="Ответить на сообщение"
+				>
+					<Share2 class="h-3 w-3" aria-hidden="true" />
+				</button>
+				<button
+					class="btn-icon"
+					onclick={copyMessage}
+					title="Копировать"
+					aria-label="Копировать сообщение"
+				>
+					<Copy class="h-3 w-3" aria-hidden="true" />
+				</button>
+				<button
+					class="btn-icon"
+					onclick={forwardMessage}
+					title="Переслать"
+					aria-label="Переслать сообщение"
+				>
+					<Share2 class="h-3 w-3" aria-hidden="true" />
+				</button>
+			</div>
+		{/if}
 
-				{#if message.editHistory && message.editHistory.length > 0}
-					<button class="action-btn" onclick={showEditHistory} title="История изменений">
-						<History class="mr-1 h-3 w-3" />
-						История
+		<!-- Индикатор времени редактирования -->
+		{#if isOwnMessage && !canEdit && editTimeLimit !== 0}
+			<div class="edit-time-limit" role="status" aria-live="polite">
+				Время редактирования истекло
+			</div>
+		{/if}
+	{/if}
+
+	<!-- Диалог подтверждения удаления -->
+	{#if showDeleteConfirm}
+		<!-- svelte-ignore a11y_no_noninteractive_element_interactions a11y_click_events_have_key_events -->
+		<div
+			class="delete-confirm-overlay"
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="delete-confirm-title"
+			tabindex="-1"
+			onclick={() => (showDeleteConfirm = false)}
+			onkeydown={handleOverlayKeydown}
+		>
+			<!-- svelte-ignore a11y_click_events_have_key_events -->
+			<div class="delete-confirm-modal" role="document" onclick={(e) => e.stopPropagation()}>
+				<h3 id="delete-confirm-title">Удалить сообщение?</h3>
+				<p>Это действие нельзя отменить.</p>
+				<div class="delete-confirm-actions">
+					<button
+						class="btn btn-secondary"
+						onclick={() => (showDeleteConfirm = false)}
+						aria-label="Отменить удаление"
+					>
+						Отмена
 					</button>
-				{/if}
-			{/if}
+					<button class="btn btn-danger" onclick={deleteMessage} aria-label="Подтвердить удаление">
+						Удалить
+					</button>
+				</div>
+			</div>
 		</div>
 	{/if}
 
-	<!-- История изменений -->
-	{#if showHistory && message.editHistory && message.editHistory.length > 0}
-		<div class="edit-history">
-			<div class="history-header">
-				<h4>История изменений</h4>
-				<button class="close-btn" onclick={() => (showHistory = false)}>
-					<X class="h-4 w-4" />
+	<!-- Контекстное меню -->
+	{#if showContextMenu}
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<div
+			class="context-menu"
+			style="left: {contextMenuPosition.x}px; top: {contextMenuPosition.y}px;"
+			role="menu"
+			aria-label="Контекстное меню"
+			tabindex="-1"
+			onclick={(e) => e.stopPropagation()}
+		>
+			<button
+				class="context-menu-item"
+				onclick={copyMessage}
+				role="menuitem"
+				aria-label="Копировать сообщение"
+			>
+				<Copy class="h-4 w-4" aria-hidden="true" />
+				Копировать
+			</button>
+			<button
+				class="context-menu-item"
+				onclick={replyToMessage}
+				role="menuitem"
+				aria-label="Ответить на сообщение"
+			>
+				<Share2 class="h-4 w-4" aria-hidden="true" />
+				Ответить
+			</button>
+			<button
+				class="context-menu-item"
+				onclick={forwardMessage}
+				role="menuitem"
+				aria-label="Переслать сообщение"
+			>
+				<Share2 class="h-4 w-4" aria-hidden="true" />
+				Переслать
+			</button>
+			{#if isOwnMessage}
+				<hr class="context-menu-divider" aria-hidden="true" />
+				{#if canEdit}
+					<button
+						class="context-menu-item"
+						onclick={startEdit}
+						role="menuitem"
+						aria-label="Редактировать сообщение"
+					>
+						<Edit3 class="h-4 w-4" aria-hidden="true" />
+						Редактировать
+					</button>
+				{/if}
+				<button
+					class="context-menu-item text-red-600"
+					onclick={() => (showDeleteConfirm = true)}
+					role="menuitem"
+					aria-label="Удалить сообщение"
+				>
+					<Trash2 class="h-4 w-4" aria-hidden="true" />
+					Удалить
 				</button>
-			</div>
-
-			<div class="history-list">
-				{#each message.editHistory as historyItem, index (historyItem.id)}
-					<div class="history-item">
-						<div class="history-content">
-							<p class="history-text">{historyItem.content}</p>
-							<div class="history-meta">
-								<span class="history-time">
-									{new Date(historyItem.editedAt).toLocaleString('ru-RU')}
-								</span>
-								{#if canEdit && index < message.editHistory!.length - 1}
-									<button
-										class="restore-btn"
-										onclick={() => restoreVersion(historyItem)}
-										title="Восстановить эту версию"
-									>
-										<RotateCcw class="h-3 w-3" />
-									</button>
-								{/if}
-							</div>
-						</div>
-					</div>
-				{/each}
-			</div>
+			{/if}
 		</div>
 	{/if}
 </div>
@@ -238,49 +372,106 @@
 		width: 100%;
 	}
 
-	.edit-mode {
-		border: 1px solid #3b82f6;
-		border-radius: 0.5rem;
-		background-color: rgba(59, 130, 246, 0.05);
-		padding: 0.75rem;
+	.message-content {
+		word-wrap: break-word;
+		white-space: pre-wrap;
+		cursor: pointer;
+		background: none;
+		border: none;
+		text-align: left;
+		font-family: inherit;
+		font-size: inherit;
+		color: inherit;
+		width: 100%;
+		padding: 0;
+		margin: 0;
 	}
 
-	.edit-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: 0.5rem;
+	.message-content:hover {
+		background-color: rgba(0, 0, 0, 0.02);
+		border-radius: 4px;
+		padding: 2px;
+		margin: -2px;
+	}
+
+	.message-content:focus {
+		outline: 2px solid #3b82f6;
+		outline-offset: 2px;
+	}
+
+	.edited-indicator {
 		font-size: 0.75rem;
 		color: #6b7280;
+		font-style: italic;
+		margin-left: 0.5rem;
 	}
 
-	.edit-label {
-		font-weight: 500;
-		color: #3b82f6;
-	}
-
-	.time-left {
-		color: #ef4444;
-		font-weight: 500;
-	}
-
-	.edit-content {
+	.message-actions {
 		display: flex;
+		gap: 0.25rem;
+		opacity: 0;
+		transition: opacity 0.2s ease;
+		margin-top: 0.25rem;
+	}
+
+	.message-editor:hover .message-actions {
+		opacity: 1;
+	}
+
+	.btn-icon {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0.25rem;
+		border: none;
+		background: transparent;
+		border-radius: 4px;
+		cursor: pointer;
+		color: #6b7280;
+		transition: all 0.2s ease;
+	}
+
+	.btn-icon:hover {
+		background-color: rgba(0, 0, 0, 0.1);
+		color: #374151;
+	}
+
+	.btn-icon:focus {
+		outline: 2px solid #3b82f6;
+		outline-offset: 2px;
+	}
+
+	.btn-icon.btn-danger:hover {
+		background-color: rgba(239, 68, 68, 0.1);
+		color: #dc2626;
+	}
+
+	.btn-icon.btn-success:hover {
+		background-color: rgba(34, 197, 94, 0.1);
+		color: #16a34a;
+	}
+
+	.btn-icon.btn-secondary:hover {
+		background-color: rgba(107, 114, 128, 0.1);
+		color: #4b5563;
+	}
+
+	.edit-mode {
+		display: flex;
+		flex-direction: column;
 		gap: 0.5rem;
-		align-items: flex-end;
 	}
 
 	.edit-textarea {
-		flex: 1;
-		min-height: 2.5rem;
+		width: 100%;
+		min-height: 60px;
 		padding: 0.5rem;
 		border: 1px solid #d1d5db;
 		border-radius: 0.375rem;
 		resize: vertical;
 		font-family: inherit;
-		font-size: 0.875rem;
-		background-color: white;
-		color: #1f2937;
+		font-size: inherit;
+		line-height: 1.5;
 	}
 
 	.edit-textarea:focus {
@@ -292,211 +483,142 @@
 	.edit-actions {
 		display: flex;
 		gap: 0.25rem;
+		justify-content: flex-end;
 	}
 
-	.btn-save,
-	.btn-cancel {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 2rem;
-		height: 2rem;
-		border: none;
-		border-radius: 0.375rem;
-		cursor: pointer;
-		transition: all 0.2s ease;
-	}
-
-	.btn-save {
-		background-color: #3b82f6;
-		color: white;
-	}
-
-	.btn-save:hover:not(:disabled) {
-		background-color: #2563eb;
-	}
-
-	.btn-save:disabled {
-		background-color: #9ca3af;
-		cursor: not-allowed;
-	}
-
-	.btn-cancel {
-		background-color: #6b7280;
-		color: white;
-	}
-
-	.btn-cancel:hover {
-		background-color: #4b5563;
-	}
-
-	.message-content {
-		position: relative;
-	}
-
-	.edited-indicator {
+	.edit-time-limit {
 		font-size: 0.75rem;
-		color: #ffffff;
-		font-weight: 600;
-		margin-left: 0.5rem;
-		background-color: #059669;
-		padding: 0.25rem 0.5rem;
-		border-radius: 0.375rem;
-		display: inline-flex;
-		align-items: center;
-		gap: 0.25rem;
-		border: 1px solid #047857;
-		box-shadow: 0 2px 4px rgba(5, 150, 105, 0.3);
-		text-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
-		transition: all 0.2s ease;
+		color: #6b7280;
+		margin-top: 0.25rem;
 	}
 
-	.edited-indicator:hover {
-		background-color: #047857;
-		border-color: #065f46;
-		box-shadow: 0 3px 6px rgba(5, 150, 105, 0.4);
-		transform: translateY(-1px);
-	}
-
-	.message-actions {
-		display: flex;
-		gap: 0.5rem;
-		margin-top: 0.5rem;
-		opacity: 0.8;
-		transition: opacity 0.2s ease;
-		background-color: rgba(255, 255, 255, 0.95);
-		padding: 0.375rem 0.75rem;
-		border-radius: 0.5rem;
-		backdrop-filter: blur(8px);
-		border: 1px solid rgba(0, 0, 0, 0.1);
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-	}
-
-	.message-editor:hover .message-actions {
-		opacity: 1;
-		transform: translateY(-1px);
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-	}
-
-	.action-btn {
-		display: flex;
-		align-items: center;
-		padding: 0.375rem 0.75rem;
-		font-size: 0.75rem;
-		font-weight: 500;
-		color: #374151;
-		background-color: #f3f4f6;
-		border: 1px solid #d1d5db;
-		border-radius: 0.375rem;
-		cursor: pointer;
-		transition: all 0.2s ease;
-		white-space: nowrap;
-	}
-
-	.action-btn:hover {
-		background-color: #e5e7eb;
-		color: #1f2937;
-		border-color: #9ca3af;
-		transform: translateY(-1px);
-		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-	}
-
-	.edit-history {
-		position: absolute;
-		top: 100%;
+	.delete-confirm-overlay {
+		position: fixed;
+		top: 0;
 		left: 0;
 		right: 0;
+		bottom: 0;
+		background-color: rgba(0, 0, 0, 0.5);
+		display: flex;
+		align-items: center;
+		justify-content: center;
 		z-index: 1000;
-		background-color: white;
-		border: 1px solid #d1d5db;
+	}
+
+	.delete-confirm-modal {
+		background: white;
+		padding: 1.5rem;
 		border-radius: 0.5rem;
-		box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-		margin-top: 0.5rem;
-		max-height: 300px;
-		overflow-y: auto;
+		box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+		max-width: 400px;
+		width: 90%;
 	}
 
-	.history-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		padding: 0.75rem;
-		border-bottom: 1px solid #e5e7eb;
-	}
-
-	.history-header h4 {
-		font-size: 0.875rem;
+	.delete-confirm-modal h3 {
+		margin: 0 0 0.5rem 0;
+		font-size: 1.125rem;
 		font-weight: 600;
-		color: #374151;
-		margin: 0;
+		color: #111827;
 	}
 
-	.close-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 1.5rem;
-		height: 1.5rem;
-		border: none;
-		background: none;
+	.delete-confirm-modal p {
+		margin: 0 0 1rem 0;
 		color: #6b7280;
+	}
+
+	.delete-confirm-actions {
+		display: flex;
+		gap: 0.5rem;
+		justify-content: flex-end;
+	}
+
+	.btn {
+		padding: 0.5rem 1rem;
+		border: none;
+		border-radius: 0.375rem;
+		font-size: 0.875rem;
+		font-weight: 500;
 		cursor: pointer;
-		border-radius: 0.25rem;
 		transition: all 0.2s ease;
 	}
 
-	.close-btn:hover {
-		background-color: rgba(0, 0, 0, 0.05);
+	.btn:focus {
+		outline: 2px solid #3b82f6;
+		outline-offset: 2px;
+	}
+
+	.btn-secondary {
+		background-color: #f3f4f6;
 		color: #374151;
 	}
 
-	.history-list {
-		padding: 0.5rem;
+	.btn-secondary:hover {
+		background-color: #e5e7eb;
 	}
 
-	.history-item {
-		padding: 0.5rem;
-		border-bottom: 1px solid #f3f4f6;
+	.btn-danger {
+		background-color: #dc2626;
+		color: white;
 	}
 
-	.history-item:last-child {
-		border-bottom: none;
+	.btn-danger:hover {
+		background-color: #b91c1c;
 	}
 
-	.history-text {
+	.context-menu {
+		position: fixed;
+		background: white;
+		border: 1px solid #e5e7eb;
+		border-radius: 0.5rem;
+		box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+		padding: 0.5rem 0;
+		z-index: 1000;
+		min-width: 160px;
+	}
+
+	.context-menu-item {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		width: 100%;
+		padding: 0.5rem 1rem;
+		border: none;
+		background: transparent;
+		cursor: pointer;
 		font-size: 0.875rem;
 		color: #374151;
-		margin: 0 0 0.25rem 0;
-		line-height: 1.4;
+		transition: background-color 0.2s ease;
 	}
 
-	.history-meta {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		font-size: 0.75rem;
-		color: #6b7280;
+	.context-menu-item:hover {
+		background-color: #f3f4f6;
 	}
 
-	.restore-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 1.25rem;
-		height: 1.25rem;
+	.context-menu-item:focus {
+		outline: 2px solid #3b82f6;
+		outline-offset: -2px;
+	}
+
+	.context-menu-divider {
+		margin: 0.25rem 0;
 		border: none;
-		background-color: #3b82f6;
-		color: white;
-		border-radius: 0.25rem;
-		cursor: pointer;
-		transition: all 0.2s ease;
-	}
-
-	.restore-btn:hover {
-		background-color: #2563eb;
+		border-top: 1px solid #e5e7eb;
 	}
 
 	/* Темная тема */
+	:global(.dark) .message-content:hover {
+		background-color: rgba(255, 255, 255, 0.05);
+	}
+
+	:global(.dark) .btn-icon {
+		color: #9ca3af;
+	}
+
+	:global(.dark) .btn-icon:hover {
+		background-color: rgba(255, 255, 255, 0.1);
+		color: #d1d5db;
+	}
+
 	:global(.dark) .edit-textarea {
 		background-color: #374151;
 		border-color: #4b5563;
@@ -507,64 +629,42 @@
 		border-color: #3b82f6;
 	}
 
-	:global(.dark) .edit-history {
+	:global(.dark) .delete-confirm-modal {
+		background-color: #1f2937;
+		color: #f9fafb;
+	}
+
+	:global(.dark) .delete-confirm-modal h3 {
+		color: #f9fafb;
+	}
+
+	:global(.dark) .delete-confirm-modal p {
+		color: #9ca3af;
+	}
+
+	:global(.dark) .btn-secondary {
 		background-color: #374151;
-		border-color: #4b5563;
+		color: #d1d5db;
 	}
 
-	:global(.dark) .history-header {
-		border-bottom-color: #4b5563;
-	}
-
-	:global(.dark) .history-header h4 {
-		color: #f9fafb;
-	}
-
-	:global(.dark) .history-item {
-		border-bottom-color: #4b5563;
-	}
-
-	:global(.dark) .history-text {
-		color: #f9fafb;
-	}
-
-	:global(.dark) .message-actions {
-		background-color: rgba(31, 41, 55, 0.95);
-		border-color: rgba(255, 255, 255, 0.15);
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-	}
-
-	:global(.dark) .message-editor:hover .message-actions {
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-	}
-
-	:global(.dark) .action-btn {
+	:global(.dark) .btn-secondary:hover {
 		background-color: #4b5563;
-		border-color: #6b7280;
-		color: #f9fafb;
 	}
 
-	:global(.dark) .action-btn:hover {
-		background-color: #6b7280;
-		color: #ffffff;
-		border-color: #9ca3af;
+	:global(.dark) .context-menu {
+		background-color: #1f2937;
+		border-color: #374151;
 	}
 
-	:global(.dark) .edited-indicator {
-		background-color: #10b981;
-		color: #ffffff;
-		border-color: #059669;
-		box-shadow: 0 2px 4px rgba(16, 185, 129, 0.4);
+	:global(.dark) .context-menu-item {
+		color: #d1d5db;
 	}
 
-	:global(.dark) .edited-indicator:hover {
-		background-color: #059669;
-		border-color: #047857;
-		box-shadow: 0 3px 6px rgba(16, 185, 129, 0.5);
+	:global(.dark) .context-menu-item:hover {
+		background-color: #374151;
 	}
 
-	:global(.dark) .close-btn:hover {
-		background-color: rgba(255, 255, 255, 0.1);
-		color: #f9fafb;
+	:global(.dark) .context-menu-divider {
+		border-color: #374151;
 	}
 </style>
