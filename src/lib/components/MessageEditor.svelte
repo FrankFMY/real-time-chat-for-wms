@@ -260,13 +260,6 @@
 				</button>
 			</div>
 		{/if}
-
-		<!-- Индикатор времени редактирования -->
-		{#if isOwnMessage && !canEdit && editTimeLimit !== 0}
-			<div class="edit-time-limit" role="status" aria-live="polite">
-				Время редактирования истекло
-			</div>
-		{/if}
 	{/if}
 
 	<!-- Диалог подтверждения удаления -->
@@ -401,9 +394,11 @@
 
 	.edited-indicator {
 		font-size: 0.75rem;
-		color: #6b7280;
+		color: #9ca3af;
 		font-style: italic;
 		margin-left: 0.5rem;
+		font-weight: 500;
+		opacity: 0.8;
 	}
 
 	.message-actions {
@@ -424,16 +419,16 @@
 		justify-content: center;
 		padding: 0.25rem;
 		border: none;
-		background: transparent;
+		background: rgba(0, 0, 0, 0.05);
 		border-radius: 4px;
 		cursor: pointer;
-		color: #6b7280;
+		color: #4b5563;
 		transition: all 0.2s ease;
 	}
 
 	.btn-icon:hover {
-		background-color: rgba(0, 0, 0, 0.1);
-		color: #374151;
+		background-color: rgba(0, 0, 0, 0.15);
+		color: #1f2937;
 	}
 
 	.btn-icon:focus {
@@ -441,19 +436,34 @@
 		outline-offset: 2px;
 	}
 
-	.btn-icon.btn-danger:hover {
-		background-color: rgba(239, 68, 68, 0.1);
+	.btn-icon.btn-danger {
+		background: rgba(239, 68, 68, 0.1);
 		color: #dc2626;
 	}
 
-	.btn-icon.btn-success:hover {
-		background-color: rgba(34, 197, 94, 0.1);
+	.btn-icon.btn-danger:hover {
+		background-color: rgba(239, 68, 68, 0.2);
+		color: #b91c1c;
+	}
+
+	.btn-icon.btn-success {
+		background: rgba(34, 197, 94, 0.1);
 		color: #16a34a;
 	}
 
-	.btn-icon.btn-secondary:hover {
-		background-color: rgba(107, 114, 128, 0.1);
+	.btn-icon.btn-success:hover {
+		background-color: rgba(34, 197, 94, 0.2);
+		color: #15803d;
+	}
+
+	.btn-icon.btn-secondary {
+		background: rgba(107, 114, 128, 0.1);
 		color: #4b5563;
+	}
+
+	.btn-icon.btn-secondary:hover {
+		background-color: rgba(107, 114, 128, 0.2);
+		color: #374151;
 	}
 
 	.edit-mode {
@@ -484,12 +494,6 @@
 		display: flex;
 		gap: 0.25rem;
 		justify-content: flex-end;
-	}
-
-	.edit-time-limit {
-		font-size: 0.75rem;
-		color: #6b7280;
-		margin-top: 0.25rem;
 	}
 
 	.delete-confirm-overlay {
@@ -611,12 +615,13 @@
 	}
 
 	:global(.dark) .btn-icon {
-		color: #9ca3af;
+		background: rgba(255, 255, 255, 0.1);
+		color: #d1d5db;
 	}
 
 	:global(.dark) .btn-icon:hover {
-		background-color: rgba(255, 255, 255, 0.1);
-		color: #d1d5db;
+		background-color: rgba(255, 255, 255, 0.2);
+		color: #f9fafb;
 	}
 
 	:global(.dark) .edit-textarea {
@@ -666,5 +671,40 @@
 
 	:global(.dark) .context-menu-divider {
 		border-color: #374151;
+	}
+
+	:global(.dark) .edited-indicator {
+		color: #d1d5db;
+		opacity: 0.9;
+	}
+
+	:global(.dark) .btn-icon.btn-danger {
+		background: rgba(239, 68, 68, 0.2);
+		color: #fca5a5;
+	}
+
+	:global(.dark) .btn-icon.btn-danger:hover {
+		background-color: rgba(239, 68, 68, 0.3);
+		color: #fecaca;
+	}
+
+	:global(.dark) .btn-icon.btn-success {
+		background: rgba(34, 197, 94, 0.2);
+		color: #86efac;
+	}
+
+	:global(.dark) .btn-icon.btn-success:hover {
+		background-color: rgba(34, 197, 94, 0.3);
+		color: #bbf7d0;
+	}
+
+	:global(.dark) .btn-icon.btn-secondary {
+		background: rgba(156, 163, 175, 0.2);
+		color: #d1d5db;
+	}
+
+	:global(.dark) .btn-icon.btn-secondary:hover {
+		background-color: rgba(156, 163, 175, 0.3);
+		color: #e5e7eb;
 	}
 </style>
