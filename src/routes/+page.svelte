@@ -37,11 +37,12 @@
 
 	// Моковые данные для демо (в реальном приложении будут из аутентификации)
 	import { mockUsers, mockChats, mockMessages } from '$lib/mock-data';
-	import type { Reaction } from '$lib/types/chat';
+	import type { Reaction, ReplyMessage } from '$lib/types/chat';
 	import MessageReactions from '$lib/components/MessageReactions.svelte';
 	import MessageEditor from '$lib/components/MessageEditor.svelte';
 	import FileUpload from '$lib/components/FileUpload.svelte';
 	import ImageGallery from '$lib/components/ImageGallery.svelte';
+	import ReplySelector from '$lib/components/ReplySelector.svelte';
 
 	// Текущий пользователь (в реальном приложении будет из аутентификации)
 	const currentUser = mockUsers[0];
@@ -58,6 +59,10 @@
 	let galleryImages = $state<string[]>([]);
 	let galleryCurrentIndex = $state(0);
 	let showGallery = $state(false);
+	
+	// Состояние для ответов на сообщения
+	let showReplySelector = $state(false);
+	let selectedReplyMessage = $state<ReplyMessage | null>(null);
 
 	// Реактивные значения для темы
 	let themeTitle = $derived(isDarkMode ? 'Переключить на светлую тему' : 'Переключить на тёмную тему');
@@ -208,13 +213,37 @@
 		const content = messageText.trim();
 
 		try {
+			// Создаем новое сообщение с поддержкой ответов
+			const newMessage = {
+				id: `msg-${Date.now()}`,
+				content,
+				senderId: currentUser.id,
+				chatId,
+				timestamp: new Date(),
+				type: 'text' as const,
+				status: 'sending' as const,
+				reactions: [],
+				...(selectedReplyMessage && {
+					replyTo: selectedReplyMessage.id,
+					replyToMessage: selectedReplyMessage
+				})
+			};
+
+			// Добавляем сообщение в моковые данные
+			mockMessages.push(newMessage);
+			
+			// Обновляем store
+			messages.update(current => ({ ...current }));
+			
 			// Отправляем через WebSocket для real-time
 			chatActions.sendMessage(chatId, content);
 			
 			// Также отправляем через API для надежности
 			await apiSendMessage(chatId, content);
 			
+			// Очищаем поле ввода и выбранный ответ
 			messageText = '';
+			selectedReplyMessage = null;
 		} catch (error) {
 			console.error('Error sending message:', error);
 		}
@@ -319,6 +348,26 @@
 
 	function handleShowHistory(event: CustomEvent<{ messageId: string }>) {
 		console.log('Показать историю для сообщения:', event.detail.messageId);
+	}
+
+	// Обработчики ответов на сообщения
+	function handleReply(event: CustomEvent<{ messageId: string }>) {
+		console.log('Ответить на сообщение:', event.detail.messageId);
+		showReplySelector = true;
+	}
+
+	function handleReplySelect(event: CustomEvent<{ message: ReplyMessage }>) {
+		selectedReplyMessage = event.detail.message;
+		showReplySelector = false;
+		console.log('Выбрано сообщение для ответа:', selectedReplyMessage);
+	}
+
+	function handleReplyCancel() {
+		showReplySelector = false;
+	}
+
+	function removeReply() {
+		selectedReplyMessage = null;
 	}
 
 	// Обработчики файлов
@@ -594,6 +643,7 @@
 										on:save={handleEditMessage}
 										on:cancel={handleCancelEdit}
 										on:showHistory={handleShowHistory}
+										on:reply={handleReply}
 									/>
 								{:else}
 									{message.content}
@@ -679,6 +729,16 @@
 
 			<!-- Поле ввода -->
 			<div class="chat-input">
+				<!-- Отображение выбранного сообщения для ответа -->
+				{#if selectedReplyMessage}
+					<div class="reply-preview">
+						<MessageReply 
+							replyMessage={selectedReplyMessage} 
+							onRemove={removeReply}
+						/>
+					</div>
+				{/if}
+				
 				<div class="flex items-end gap-2">
 					<button class="btn-ghost" onclick={openFileUpload} title="Прикрепить файл">
 						<Paperclip class="h-5 w-5" />
@@ -732,4 +792,29 @@
 		isOpen={showGallery}
 		on:close={closeImageGallery}
 	/>
+
+	<!-- Селектор сообщений для ответа -->
+	{#if showReplySelector}
+		<ReplySelector
+			messages={$activeChatMessages}
+			currentUserId={currentUser?.id || '1'}
+			onClose={handleReplyCancel}
+			on:select={handleReplySelect}
+		/>
+	{/if}
 </div>
+
+<style>
+	.reply-preview {
+		margin-bottom: 0.5rem;
+		padding: 0.5rem;
+		background-color: rgba(59, 130, 246, 0.05);
+		border-radius: 0.5rem;
+		border: 1px solid rgba(59, 130, 246, 0.2);
+	}
+
+	:global(.dark) .reply-preview {
+		background-color: rgba(59, 130, 246, 0.1);
+		border-color: rgba(59, 130, 246, 0.3);
+	}
+</style>

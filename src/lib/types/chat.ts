@@ -18,6 +18,17 @@ export interface MessageEditHistory {
 	editedBy: string;
 }
 
+// Цитируемое сообщение для ответов
+export interface ReplyMessage {
+	id: string;
+	content: string;
+	senderId: string;
+	senderName: string;
+	timestamp: Date;
+	type: 'text' | 'file' | 'image' | 'system';
+	attachments?: Attachment[];
+}
+
 // Типы сообщений
 export interface Message {
 	id: string;
@@ -27,7 +38,8 @@ export interface Message {
 	timestamp: Date;
 	type: 'text' | 'file' | 'image' | 'system';
 	status: 'sending' | 'sent' | 'delivered' | 'read' | 'error';
-	replyTo?: string;
+	replyTo?: string; // ID сообщения, на которое отвечаем
+	replyToMessage?: ReplyMessage; // Полная информация о цитируемом сообщении
 	attachments?: Attachment[];
 	edited?: boolean;
 	editedAt?: Date;

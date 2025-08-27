@@ -2,13 +2,15 @@
 	import { createEventDispatcher } from 'svelte';
 	import { browser } from '$app/environment';
 	import { onMount } from 'svelte';
-	import { Send, X, RotateCcw, Edit, History, CheckCircle } from 'lucide-svelte';
-	import type { Message, MessageEditHistory } from '$lib/types/chat';
+	import { Send, X, RotateCcw, Edit, History, CheckCircle, Reply } from 'lucide-svelte';
+	import type { Message, MessageEditHistory, ReplyMessage } from '$lib/types/chat';
+	import MessageReply from './MessageReply.svelte';
 
 	const dispatch = createEventDispatcher<{
 		save: { messageId: string; content: string };
 		cancel: { messageId: string };
 		showHistory: { messageId: string };
+		reply: { messageId: string };
 	}>();
 
 	const { message, currentUserId, editTimeLimit = 15 } = $props<{
@@ -22,6 +24,7 @@
 	let showHistory = $state(false);
 	let timeLeft = $state<number | null>(null);
 	let editTimer: NodeJS.Timeout | null = null;
+	let selectedReplyMessage = $state<ReplyMessage | null>(null);
 
 	// Проверяем, можно ли редактировать сообщение
 	let canEdit = $derived(message.senderId === currentUserId && 
@@ -101,6 +104,14 @@
 		editedContent = historyItem.content;
 		saveEdit();
 	}
+
+	function handleReply() {
+		dispatch('reply', { messageId: message.id });
+	}
+
+	function removeReply() {
+		selectedReplyMessage = null;
+	}
 </script>
 
 <div class="message-editor">
@@ -145,6 +156,11 @@
 		</div>
 	{:else}
 		<!-- Обычный режим отображения -->
+		{#if message.replyToMessage}
+			<MessageReply 
+				replyMessage={message.replyToMessage} 
+			/>
+		{/if}
 		<div class="message-content">
 			{message.content}
 			{#if message.edited}
@@ -156,8 +172,17 @@
 		</div>
 		
 		<!-- Кнопки действий -->
-		{#if message.senderId === currentUserId}
-			<div class="message-actions">
+		<div class="message-actions">
+			<button
+				class="action-btn"
+				onclick={handleReply}
+				title="Ответить на сообщение"
+			>
+				<Reply class="h-3 w-3 mr-1" />
+				Ответить
+			</button>
+			
+			{#if message.senderId === currentUserId}
 				{#if canEdit}
 					<button
 						class="action-btn"
@@ -179,8 +204,8 @@
 						История
 					</button>
 				{/if}
-			</div>
-		{/if}
+			{/if}
+		</div>
 	{/if}
 
 	<!-- История изменений -->

@@ -263,6 +263,25 @@ export const mockMessages: Message[] = [
 		status: 'read',
 		reactions: []
 	},
+	{
+		id: 'msg1_5',
+		chatId: '1',
+		senderId: '1',
+		content: 'Кстати, когда у тебя презентация?',
+		timestamp: new Date(Date.now() - 4 * 60 * 1000),
+		type: 'text',
+		status: 'read',
+		replyTo: 'msg1_4',
+		replyToMessage: {
+			id: 'msg1_4',
+			content: 'Отлично! Готовлюсь к презентации',
+			senderId: '2',
+			senderName: 'Мария Сидорова',
+			timestamp: new Date(Date.now() - 5 * 60 * 1000),
+			type: 'text'
+		},
+		reactions: []
+	},
 
 	// Сообщения в чате с Дмитрием
 	{
