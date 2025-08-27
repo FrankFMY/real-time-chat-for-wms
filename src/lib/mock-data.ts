@@ -18,7 +18,7 @@ export const mockUsers: User[] = [
 		name: 'Мария Сидорова',
 		email: 'maria@example.com',
 		avatar:
-			'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face',
+			'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=face',
 		status: 'online',
 		role: 'user',
 		createdAt: new Date('2024-01-02'),
@@ -66,7 +66,7 @@ export const mockChats: Chat[] = [
 		name: 'Мария Сидорова',
 		type: 'direct',
 		avatar:
-			'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face',
+			'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=face',
 		participants: ['1', '2'],
 		createdAt: new Date('2024-01-15'),
 		updatedAt: new Date(),
