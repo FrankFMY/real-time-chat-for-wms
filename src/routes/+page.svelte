@@ -39,6 +39,7 @@
 	import { mockUsers, mockChats, mockMessages } from '$lib/mock-data';
 	import type { Reaction } from '$lib/types/chat';
 	import MessageReactions from '$lib/components/MessageReactions.svelte';
+	import MessageEditor from '$lib/components/MessageEditor.svelte';
 	import FileUpload from '$lib/components/FileUpload.svelte';
 	import ImageGallery from '$lib/components/ImageGallery.svelte';
 
@@ -273,6 +274,51 @@
 			// Обновляем store
 			messages.update(current => ({ ...current }));
 		}
+	}
+
+	// Обработчики редактирования сообщений
+	async function handleEditMessage(event: CustomEvent<{ messageId: string; content: string }>) {
+		const { messageId, content } = event.detail;
+		
+		try {
+			const response = await fetch(`/api/messages/${messageId}`, {
+				method: 'PATCH',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ content })
+			});
+
+			if (response.ok) {
+				const { message: updatedMessage } = await response.json();
+				
+				// Обновляем сообщение в моковых данных
+				const messageIndex = mockMessages.findIndex(m => m.id === messageId);
+				if (messageIndex !== -1) {
+					mockMessages[messageIndex] = updatedMessage;
+				}
+				
+				// Обновляем store
+				messages.update(current => ({ ...current }));
+				
+				console.log('Сообщение успешно отредактировано');
+			} else {
+				const error = await response.json();
+				console.error('Ошибка редактирования:', error.error);
+				alert(error.error);
+			}
+		} catch (error) {
+			console.error('Ошибка при редактировании сообщения:', error);
+			alert('Ошибка при редактировании сообщения');
+		}
+	}
+
+	function handleCancelEdit(event: CustomEvent<{ messageId: string }>) {
+		console.log('Редактирование отменено для сообщения:', event.detail.messageId);
+	}
+
+	function handleShowHistory(event: CustomEvent<{ messageId: string }>) {
+		console.log('Показать историю для сообщения:', event.detail.messageId);
 	}
 
 	// Обработчики файлов
@@ -539,7 +585,19 @@
 							{/if}
 
 							<div class="message-bubble {isOwn ? 'sent' : 'received'}">
-								{message.content}
+								<!-- Используем компонент редактирования для текстовых сообщений -->
+								{#if message.type === 'text'}
+									<MessageEditor
+										{message}
+										currentUserId={currentUser?.id || '1'}
+										editTimeLimit={15}
+										on:save={handleEditMessage}
+										on:cancel={handleCancelEdit}
+										on:showHistory={handleShowHistory}
+									/>
+								{:else}
+									{message.content}
+								{/if}
 								
 								<!-- Отображение изображений -->
 								{#if message.type === 'image' && message.attachments && message.attachments.length > 0}

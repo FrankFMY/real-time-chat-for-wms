@@ -200,10 +200,20 @@ export const mockMessages: Message[] = [
 		id: 'msg1_2',
 		chatId: '1',
 		senderId: '1',
-		content: 'Привет! Все хорошо, спасибо! А у тебя?',
+		content: 'Привет! Все отлично, спасибо! А у тебя как дела?',
 		timestamp: new Date(Date.now() - 8 * 60 * 1000),
 		type: 'text',
 		status: 'read',
+		edited: true,
+		editedAt: new Date(Date.now() - 7 * 60 * 1000),
+		editHistory: [
+			{
+				id: 'edit1',
+				content: 'Привет! Все хорошо, спасибо! А у тебя?',
+				editedAt: new Date(Date.now() - 8 * 60 * 1000),
+				editedBy: '1'
+			}
+		],
 		reactions: [
 			{
 				id: 'react3',
@@ -284,10 +294,20 @@ export const mockMessages: Message[] = [
 		id: 'msg2_2',
 		chatId: '2',
 		senderId: '1',
-		content: 'Конечно! Встретимся завтра в 15:00',
+		content: 'Конечно! Встретимся завтра в 15:00 в офисе',
 		timestamp: new Date(Date.now() - 30 * 60 * 1000),
 		type: 'text',
 		status: 'delivered',
+		edited: true,
+		editedAt: new Date(Date.now() - 25 * 60 * 1000),
+		editHistory: [
+			{
+				id: 'edit2',
+				content: 'Конечно! Встретимся завтра в 15:00',
+				editedAt: new Date(Date.now() - 30 * 60 * 1000),
+				editedBy: '1'
+			}
+		],
 		reactions: []
 	},
 	{

@@ -1,156 +1,149 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getCurrentUser } from '$lib/server/auth';
-import { mockMessages, mockChats, mockUsers } from '$lib/mock-data';
-import { validateWithZod } from '$lib/utils/errors';
 import { z } from 'zod';
-import type { Message } from '$lib/types/chat';
+import type { Message, MessageEditHistory } from '$lib/types/chat';
 
-const updateMessageSchema = z.object({
-	content: z.string().min(1, 'Содержание сообщения обязательно')
+// Схема для редактирования сообщения
+const editMessageSchema = z.object({
+	content: z
+		.string()
+		.min(1, 'Сообщение не может быть пустым')
+		.max(2000, 'Сообщение слишком длинное')
 });
 
-// PUT /api/messages/[id] - редактирование сообщения
-export const PUT: RequestHandler = async ({ params, request }) => {
-	try {
-		const user = await getCurrentUser(request);
-		if (!user) {
-			return json({ error: 'Unauthorized' }, { status: 401 });
-		}
+// Моковые данные (в реальном приложении будут из базы данных)
+import { mockMessages } from '$lib/mock-data';
 
+// Временной лимит для редактирования (в минутах)
+const EDIT_TIME_LIMIT = 15;
+
+export const PATCH: RequestHandler = async ({ params, request }) => {
+	try {
 		const messageId = params.id;
 		if (!messageId) {
-			return json({ error: 'Message ID is required' }, { status: 400 });
+			return json({ error: 'ID сообщения не указан' }, { status: 400 });
 		}
 
 		// Находим сообщение
-		const message = Array.isArray(mockMessages)
-			? mockMessages.find((m: Message) => m.id === messageId)
-			: undefined;
-		if (!message) {
-			return json({ error: 'Message not found' }, { status: 404 });
+		const messageIndex = mockMessages.findIndex((msg) => msg.id === messageId);
+		if (messageIndex === -1) {
+			return json({ error: 'Сообщение не найдено' }, { status: 404 });
 		}
 
-		// Проверяем права доступа (только отправитель может редактировать)
-		if (message.senderId !== user.id) {
-			return json({ error: 'Access denied' }, { status: 403 });
+		const message = mockMessages[messageIndex]!;
+
+		// Проверяем временной лимит для редактирования
+		const now = new Date();
+		const messageTime = message.timestamp;
+		const timeDiff = now.getTime() - messageTime.getTime();
+		const timeLimitMs = EDIT_TIME_LIMIT * 60 * 1000; // 15 минут в миллисекундах
+
+		if (timeDiff > timeLimitMs) {
+			return json(
+				{
+					error: `Редактирование возможно только в течение ${EDIT_TIME_LIMIT} минут после отправки`,
+					timeLimit: EDIT_TIME_LIMIT,
+					elapsed: Math.floor(timeDiff / 60000)
+				},
+				{ status: 403 }
+			);
 		}
 
-		// Проверяем, что сообщение не слишком старое (например, 15 минут)
-		const messageAge = Date.now() - message.timestamp.getTime();
-		const maxEditTime = 15 * 60 * 1000; // 15 минут
-		if (messageAge > maxEditTime) {
-			return json({ error: 'Message is too old to edit' }, { status: 400 });
-		}
-
+		// Парсим и валидируем данные
 		const body = await request.json();
-		const { data: updateData, error: validationError } = validateWithZod(updateMessageSchema, body);
+		const validatedData = editMessageSchema.parse(body);
 
-		if (validationError) {
-			return json({ error: validationError.message }, { status: 400 });
+		// Проверяем, что контент изменился
+		if (validatedData.content === message.content) {
+			return json({ error: 'Сообщение не изменилось' }, { status: 400 });
 		}
 
-		if (!updateData) {
-			return json({ error: 'Invalid update data' }, { status: 400 });
-		}
+		// Сохраняем предыдущую версию в историю
+		const editHistory: MessageEditHistory = {
+			id: `edit-${Date.now()}`,
+			content: message.content,
+			editedAt: message.editedAt || message.timestamp,
+			editedBy: message.senderId
+		};
 
 		// Обновляем сообщение
-		message.content = updateData.content;
-		message.edited = true;
+		const updatedMessage: Message = {
+			...message,
+			content: validatedData.content,
+			edited: true,
+			editedAt: now,
+			editHistory: [editHistory, ...(message.editHistory || [])].slice(0, 10) // Ограничиваем историю 10 версиями
+		};
 
-		// Обновляем последнее сообщение в чате
-		const chat = mockChats.find((c) => c.id === message.chatId);
-		if (chat && chat.lastMessage && chat.lastMessage.id === message.id) {
-			chat.lastMessage.content = updateData.content;
-		}
+		// Обновляем в моковых данных
+		mockMessages[messageIndex] = updatedMessage;
 
-		// Возвращаем обновленное сообщение с информацией об отправителе
-		const sender = mockUsers.find((u) => u.id === user.id);
+		// В реальном приложении здесь был бы запрос к базе данных
+		// await db.messages.update({ where: { id: messageId }, data: updatedMessage });
 
 		return json({
-			message: {
-				...message,
-				sender
-			}
+			success: true,
+			message: updatedMessage
 		});
 	} catch (error) {
-		console.error('Error updating message:', error);
-		return json({ error: 'Internal server error' }, { status: 500 });
+		console.error('Error editing message:', error);
+
+		if (error instanceof z.ZodError) {
+			return json(
+				{
+					error: 'Неверные данные',
+					details: error.issues
+				},
+				{ status: 400 }
+			);
+		}
+
+		return json({ error: 'Внутренняя ошибка сервера' }, { status: 500 });
 	}
 };
 
-// DELETE /api/messages/[id] - удаление сообщения
-export const DELETE: RequestHandler = async ({ params, request }) => {
+// GET метод для получения сообщения
+export const GET: RequestHandler = async ({ params }) => {
 	try {
-		const user = await getCurrentUser(request);
-		if (!user) {
-			return json({ error: 'Unauthorized' }, { status: 401 });
-		}
-
 		const messageId = params.id;
 		if (!messageId) {
-			return json({ error: 'Message ID is required' }, { status: 400 });
+			return json({ error: 'ID сообщения не указан' }, { status: 400 });
 		}
 
-		// Находим сообщение
-		const messageIndex = Array.isArray(mockMessages)
-			? mockMessages.findIndex((m: Message) => m.id === messageId)
-			: -1;
-		if (messageIndex === -1) {
-			return json({ error: 'Message not found' }, { status: 404 });
-		}
-
-		const message = Array.isArray(mockMessages) ? mockMessages[messageIndex] : undefined;
+		const message = mockMessages.find((msg) => msg.id === messageId);
 		if (!message) {
-			return json({ error: 'Message not found' }, { status: 404 });
+			return json({ error: 'Сообщение не найдено' }, { status: 404 });
 		}
 
-		// Проверяем права доступа (только отправитель может удалять)
-		if (message.senderId !== user.id) {
-			return json({ error: 'Access denied' }, { status: 403 });
+		return json({ message });
+	} catch (error) {
+		console.error('Error getting message:', error);
+		return json({ error: 'Внутренняя ошибка сервера' }, { status: 500 });
+	}
+};
+
+// DELETE метод для удаления сообщения
+export const DELETE: RequestHandler = async ({ params }) => {
+	try {
+		const messageId = params.id;
+		if (!messageId) {
+			return json({ error: 'ID сообщения не указан' }, { status: 400 });
 		}
 
-		// Проверяем, что сообщение не слишком старое (например, 5 минут)
-		const messageAge = Date.now() - message.timestamp.getTime();
-		const maxDeleteTime = 5 * 60 * 1000; // 5 минут
-		if (messageAge > maxDeleteTime) {
-			return json({ error: 'Message is too old to delete' }, { status: 400 });
+		const messageIndex = mockMessages.findIndex((msg) => msg.id === messageId);
+		if (messageIndex === -1) {
+			return json({ error: 'Сообщение не найдено' }, { status: 404 });
 		}
 
 		// Удаляем сообщение
-		if (Array.isArray(mockMessages)) {
-			mockMessages.splice(messageIndex, 1);
-		}
+		mockMessages.splice(messageIndex, 1);
 
-		// Обновляем последнее сообщение в чате, если нужно
-		const chat = mockChats.find((c) => c.id === message.chatId);
-		if (chat && chat.lastMessage?.id === messageId) {
-			// Находим новое последнее сообщение
-			const lastMessage = Array.isArray(mockMessages)
-				? mockMessages
-						.filter((m: Message) => m.chatId === message.chatId)
-						.sort((a: Message, b: Message) => b.timestamp.getTime() - a.timestamp.getTime())[0]
-				: undefined;
-
-									if (lastMessage) {
-							chat.lastMessage = {
-								id: lastMessage.id,
-								content: lastMessage.content,
-								senderId: lastMessage.senderId,
-								timestamp: lastMessage.timestamp,
-								chatId: lastMessage.chatId,
-								type: lastMessage.type,
-								status: lastMessage.status,
-								reactions: lastMessage.reactions || []
-							};
-						} else {
-				delete chat.lastMessage;
-			}
-		}
+		// В реальном приложении здесь был бы запрос к базе данных
+		// await db.messages.delete({ where: { id: messageId } });
 
 		return json({ success: true });
 	} catch (error) {
 		console.error('Error deleting message:', error);
-		return json({ error: 'Internal server error' }, { status: 500 });
+		return json({ error: 'Внутренняя ошибка сервера' }, { status: 500 });
 	}
 };

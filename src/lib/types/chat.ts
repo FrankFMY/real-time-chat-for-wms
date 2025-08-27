@@ -10,6 +10,14 @@ export interface User {
 	createdAt: Date;
 }
 
+// История редактирования сообщения
+export interface MessageEditHistory {
+	id: string;
+	content: string;
+	editedAt: Date;
+	editedBy: string;
+}
+
 // Типы сообщений
 export interface Message {
 	id: string;
@@ -23,7 +31,11 @@ export interface Message {
 	attachments?: Attachment[];
 	edited?: boolean;
 	editedAt?: Date;
+	editHistory?: MessageEditHistory[];
 	reactions: Reaction[];
+	// Поля для редактирования
+	canEdit?: boolean; // Можно ли редактировать (временной лимит)
+	editTimeLimit?: number; // Лимит времени в минутах для редактирования
 }
 
 // Типы реакций
