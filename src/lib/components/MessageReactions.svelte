@@ -15,18 +15,18 @@
 	const availableReactions = ['👍', '👎', '❤️', '😄', '😮', '😢', '😡'];
 
 	// Группируем реакции по эмодзи
-	$: reactionGroups = availableReactions.map(emoji => ({
+	$: reactionGroups = availableReactions.map((emoji) => ({
 		emoji,
-		count: reactions.filter(r => r.emoji === emoji).length,
-		hasReacted: reactions.some(r => r.emoji === emoji && r.userId === currentUserId)
+		count: reactions.filter((r) => r.emoji === emoji).length,
+		hasReacted: reactions.some((r) => r.emoji === emoji && r.userId === currentUserId)
 	}));
 
 	// Показываем только реакции с количеством > 0
-	$: visibleReactions = reactionGroups.filter(group => group.count > 0);
+	$: visibleReactions = reactionGroups.filter((group) => group.count > 0);
 
 	function handleReactionClick(emoji: string) {
-		const hasReacted = reactions.some(r => r.emoji === emoji && r.userId === currentUserId);
-		
+		const hasReacted = reactions.some((r) => r.emoji === emoji && r.userId === currentUserId);
+
 		if (hasReacted) {
 			dispatch('removeReaction', { messageId, emoji });
 		} else {
@@ -34,9 +34,7 @@
 		}
 	}
 
-	function handleReactionHover(emoji: string) {
-		// Можно добавить tooltip с именами пользователей
-	}
+	// Убираем неиспользуемую функцию
 </script>
 
 <div class="message-reactions">
@@ -47,7 +45,7 @@
 				<button
 					class="reaction-button {group.hasReacted ? 'reacted' : ''}"
 					onclick={() => handleReactionClick(group.emoji)}
-					onmouseenter={() => handleReactionHover(group.emoji)}
+					onmouseenter={() => {}}
 					title="{group.emoji} {group.count}"
 				>
 					<span class="emoji">{group.emoji}</span>
@@ -64,7 +62,7 @@
 		<button class="add-reaction-button" title="Добавить реакцию">
 			<span class="emoji">😊</span>
 		</button>
-		
+
 		<!-- Выпадающее меню с реакциями -->
 		<div class="reactions-menu">
 			{#each availableReactions as emoji (emoji)}

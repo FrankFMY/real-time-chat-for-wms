@@ -10,7 +10,12 @@
 		uploadError: { fileId: string; error: string };
 	}>();
 
-	const { multiple = true, accept = 'image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt', maxSize = 10 * 1024 * 1024, maxFiles = 5 } = $props<{
+	const {
+		multiple = true,
+		accept = 'image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt',
+		maxSize = 10 * 1024 * 1024,
+		maxFiles = 5
+	} = $props<{
 		multiple?: boolean;
 		accept?: string;
 		maxSize?: number;
@@ -22,13 +27,7 @@
 	let uploadProgress = $state<Record<string, number>>({});
 	let isUploading = $state(false);
 
-	// Поддерживаемые типы файлов
-	const supportedTypes = {
-		image: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'],
-		document: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-		spreadsheet: ['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
-		text: ['text/plain', 'text/csv']
-	};
+	// Убираем неиспользуемую переменную
 
 	// Получить иконку для типа файла
 	function getFileIcon(file: globalThis.File) {
@@ -114,7 +113,7 @@
 		const validFiles: globalThis.File[] = [];
 		const errors: string[] = [];
 
-		files.forEach(file => {
+		files.forEach((file) => {
 			const error = validateFile(file);
 			if (error) {
 				errors.push(`${file.name}: ${error}`);
@@ -154,12 +153,12 @@
 
 		for (const file of selectedFiles) {
 			const fileId = `${file.name}-${Date.now()}`;
-			
+
 			// Симуляция загрузки
 			for (let i = 0; i <= 100; i += 10) {
 				uploadProgress[fileId] = i;
 				dispatch('uploadProgress', { fileId, progress: i });
-				await new Promise(resolve => setTimeout(resolve, 100));
+				await new Promise((resolve) => setTimeout(resolve, 100));
 			}
 
 			// Симуляция завершения загрузки
@@ -186,13 +185,13 @@
 	>
 		<input
 			type="file"
-			multiple={multiple}
-			accept={accept}
+			{multiple}
+			{accept}
 			onchange={handleFileSelect}
 			class="file-input"
 			id="file-upload"
 		/>
-		
+
 		<label for="file-upload" class="drop-zone-content">
 			<Upload class="upload-icon" />
 			<div class="upload-text">
@@ -210,39 +209,31 @@
 	{#if selectedFiles.length > 0}
 		<div class="selected-files">
 			<h4>Выбранные файлы ({selectedFiles.length}/{maxFiles})</h4>
-			
+
 			<div class="files-grid">
 				{#each selectedFiles as file, index (file.name)}
 					{@const FileIcon = getFileIcon(file)}
 					{@const fileType = getFileType(file)}
 					{@const isImage = file.type.startsWith('image/')}
 					{@const preview = isImage ? createImagePreview(file) : ''}
-					
+
 					<div class="file-item">
 						{#if isImage && preview}
 							<div class="file-preview">
 								<img src={preview} alt={file.name} />
-								<button
-									class="remove-file"
-									onclick={() => removeFile(index)}
-									title="Удалить файл"
-								>
+								<button class="remove-file" onclick={() => removeFile(index)} title="Удалить файл">
 									<X class="h-4 w-4" />
 								</button>
 							</div>
 						{:else}
 							<div class="file-icon">
 								<FileIcon class="h-8 w-8" />
-								<button
-									class="remove-file"
-									onclick={() => removeFile(index)}
-									title="Удалить файл"
-								>
+								<button class="remove-file" onclick={() => removeFile(index)} title="Удалить файл">
 									<X class="h-4 w-4" />
 								</button>
 							</div>
 						{/if}
-						
+
 						<div class="file-info">
 							<div class="file-name" title={file.name}>
 								{file.name.length > 20 ? file.name.slice(0, 20) + '...' : file.name}
@@ -258,11 +249,7 @@
 
 			<!-- Кнопка загрузки -->
 			<div class="upload-actions">
-				<button
-					class="upload-button"
-					onclick={uploadFiles}
-					disabled={isUploading}
-				>
+				<button class="upload-button" onclick={uploadFiles} disabled={isUploading}>
 					{#if isUploading}
 						Загрузка...
 					{:else}
@@ -312,11 +299,7 @@
 		cursor: pointer;
 	}
 
-	.upload-icon {
-		width: 3rem;
-		height: 3rem;
-		color: #6b7280;
-	}
+	/* Убираем неиспользуемый селектор */
 
 	.upload-text {
 		display: flex;
@@ -460,17 +443,5 @@
 		cursor: not-allowed;
 	}
 
-	/* Темная тема */
-	.dark .file-icon {
-		background-color: #374151;
-		color: #9ca3af;
-	}
-
-	.dark .drop-zone:hover {
-		background-color: rgba(59, 130, 246, 0.1);
-	}
-
-	.dark .drop-zone.drag-over {
-		background-color: rgba(59, 130, 246, 0.15);
-	}
+	/* Убираем неиспользуемые селекторы */
 </style>

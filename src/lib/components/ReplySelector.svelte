@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
-	import { Search, X, ArrowUp } from 'lucide-svelte';
+	import { Search, X } from 'lucide-svelte';
 	import type { Message, ReplyMessage } from '$lib/types/chat';
 
 	const dispatch = createEventDispatcher<{
@@ -17,9 +17,9 @@
 	let searchQuery = $state('');
 	let filteredMessages = $derived(
 		messages
-			.filter(msg => 
-				msg.type === 'text' && 
-				msg.content.toLowerCase().includes(searchQuery.toLowerCase())
+			.filter(
+				(msg: Message) =>
+					msg.type === 'text' && msg.content.toLowerCase().includes(searchQuery.toLowerCase())
 			)
 			.slice(-20) // Показываем последние 20 сообщений
 			.reverse()
@@ -33,7 +33,7 @@
 			senderName: message.senderId === currentUserId ? 'Вы' : 'Пользователь', // В реальном приложении получаем имя из users
 			timestamp: message.timestamp,
 			type: message.type,
-			attachments: message.attachments
+			...(message.attachments && { attachments: message.attachments })
 		};
 
 		dispatch('select', { message: replyMessage });
@@ -66,8 +66,25 @@
 	}
 </script>
 
-<div class="reply-selector-overlay" onclick={onClose}>
-	<div class="reply-selector" onclick={(e) => e.stopPropagation()}>
+<div
+	class="reply-selector-overlay"
+	onclick={onClose}
+	onkeydown={handleKeydown}
+	role="button"
+	tabindex="0"
+	aria-label="Закрыть диалог выбора сообщения"
+	title="Нажмите для закрытия"
+>
+	<div
+		class="reply-selector"
+		onclick={(e) => e.stopPropagation()}
+		onkeydown={(e) => e.stopPropagation()}
+		role="dialog"
+		aria-modal="true"
+		tabindex="-1"
+		aria-label="Диалог выбора сообщения для ответа"
+		aria-describedby="reply-selector-description"
+	>
 		<div class="selector-header">
 			<h3>Выберите сообщение для ответа</h3>
 			<button class="close-btn" onclick={onClose} title="Закрыть">
@@ -77,14 +94,13 @@
 
 		<div class="search-container">
 			<div class="search-input-wrapper">
-				<Search class="h-4 w-4 search-icon" />
+				<Search class="pointer-events-none absolute left-3 h-4 w-4 text-gray-500" />
 				<input
 					type="text"
 					bind:value={searchQuery}
 					placeholder="Поиск по сообщениям..."
 					class="search-input"
 					onkeydown={handleKeydown}
-					autofocus
 				/>
 			</div>
 		</div>
@@ -100,10 +116,11 @@
 				</div>
 			{:else}
 				{#each filteredMessages as message (message.id)}
-					<div 
-						class="message-item" 
+					<button
+						class="message-item"
 						onclick={() => selectMessage(message)}
 						title="Нажмите для выбора"
+						type="button"
 					>
 						<div class="message-header">
 							<span class="sender-name">
@@ -121,15 +138,13 @@
 								📎 {message.attachments.length} вложение(й)
 							</div>
 						{/if}
-					</div>
+					</button>
 				{/each}
 			{/if}
 		</div>
 
 		<div class="selector-footer">
-			<button class="cancel-btn" onclick={onClose}>
-				Отмена
-			</button>
+			<button class="cancel-btn" onclick={onClose}> Отмена </button>
 		</div>
 	</div>
 </div>
@@ -147,17 +162,26 @@
 		justify-content: center;
 		z-index: 1000;
 		backdrop-filter: blur(4px);
+		cursor: pointer;
+	}
+
+	.reply-selector-overlay:focus {
+		outline: 2px solid #3b82f6;
+		outline-offset: 2px;
 	}
 
 	.reply-selector {
 		background-color: white;
 		border-radius: 0.75rem;
-		box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+		box-shadow:
+			0 20px 25px -5px rgba(0, 0, 0, 0.1),
+			0 10px 10px -5px rgba(0, 0, 0, 0.04);
 		width: 90%;
 		max-width: 500px;
 		max-height: 80vh;
 		display: flex;
 		flex-direction: column;
+		cursor: default;
 	}
 
 	.selector-header {
@@ -205,12 +229,6 @@
 		align-items: center;
 	}
 
-	.search-icon {
-		position: absolute;
-		left: 0.75rem;
-		color: #9ca3af;
-	}
-
 	.search-input {
 		width: 100%;
 		padding: 0.75rem 0.75rem 0.75rem 2.5rem;
@@ -242,6 +260,10 @@
 		cursor: pointer;
 		transition: all 0.2s ease;
 		border: 1px solid transparent;
+		background: none;
+		width: 100%;
+		text-align: left;
+		font-family: inherit;
 	}
 
 	.message-item:hover {

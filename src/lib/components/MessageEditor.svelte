@@ -3,7 +3,7 @@
 	import { browser } from '$app/environment';
 	import { onMount } from 'svelte';
 	import { Send, X, RotateCcw, Edit, History, CheckCircle, Reply } from 'lucide-svelte';
-	import type { Message, MessageEditHistory, ReplyMessage } from '$lib/types/chat';
+	import type { Message, MessageEditHistory } from '$lib/types/chat';
 	import MessageReply from './MessageReply.svelte';
 
 	const dispatch = createEventDispatcher<{
@@ -13,7 +13,11 @@
 		reply: { messageId: string };
 	}>();
 
-	const { message, currentUserId, editTimeLimit = 15 } = $props<{
+	const {
+		message,
+		currentUserId,
+		editTimeLimit = 15
+	} = $props<{
 		message: Message;
 		currentUserId: string;
 		editTimeLimit?: number;
@@ -24,16 +28,20 @@
 	let showHistory = $state(false);
 	let timeLeft = $state<number | null>(null);
 	let editTimer: NodeJS.Timeout | null = null;
-	let selectedReplyMessage = $state<ReplyMessage | null>(null);
+	// Убираем неиспользуемую переменную
 
 	// Проверяем, можно ли редактировать сообщение
-	let canEdit = $derived(message.senderId === currentUserId && 
-		(!message.editedAt || 
-			(Date.now() - message.editedAt.getTime()) < editTimeLimit * 60 * 1000));
+	let canEdit = $derived(
+		message.senderId === currentUserId &&
+			(!message.editedAt || Date.now() - message.editedAt.getTime() < editTimeLimit * 60 * 1000)
+	);
 
 	// Форматирование оставшегося времени
-	let timeLeftFormatted = $derived(timeLeft !== null ? 
-		`${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}` : null);
+	let timeLeftFormatted = $derived(
+		timeLeft !== null
+			? `${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}`
+			: null
+	);
 
 	onMount(() => {
 		if (browser && message.editedAt) {
@@ -50,13 +58,13 @@
 
 	function updateTimeLeft() {
 		if (!message.editedAt) return;
-		
+
 		const elapsed = Date.now() - message.editedAt.getTime();
 		const limitMs = editTimeLimit * 60 * 1000;
 		const remaining = Math.max(0, Math.floor((limitMs - elapsed) / 1000));
-		
+
 		timeLeft = remaining > 0 ? remaining : null;
-		
+
 		if (remaining <= 0 && editTimer) {
 			clearInterval(editTimer);
 		}
@@ -80,9 +88,9 @@
 			return;
 		}
 
-		dispatch('save', { 
-			messageId: message.id, 
-			content: editedContent.trim() 
+		dispatch('save', {
+			messageId: message.id,
+			content: editedContent.trim()
 		});
 		isEditing = false;
 	}
@@ -109,9 +117,7 @@
 		dispatch('reply', { messageId: message.id });
 	}
 
-	function removeReply() {
-		selectedReplyMessage = null;
-	}
+	// Убираем неиспользуемую функцию
 </script>
 
 <div class="message-editor">
@@ -124,7 +130,7 @@
 					<span class="time-left">Осталось: {timeLeftFormatted}</span>
 				{/if}
 			</div>
-			
+
 			<div class="edit-content">
 				<textarea
 					bind:value={editedContent}
@@ -132,9 +138,8 @@
 					class="edit-textarea"
 					placeholder="Введите текст сообщения..."
 					rows="1"
-					autofocus
 				></textarea>
-				
+
 				<div class="edit-actions">
 					<button
 						class="btn-save"
@@ -144,11 +149,7 @@
 					>
 						<Send class="h-4 w-4" />
 					</button>
-					<button
-						class="btn-cancel"
-						onclick={cancelEditing}
-						title="Отменить редактирование"
-					>
+					<button class="btn-cancel" onclick={cancelEditing} title="Отменить редактирование">
 						<X class="h-4 w-4" />
 					</button>
 				</div>
@@ -157,9 +158,7 @@
 	{:else}
 		<!-- Обычный режим отображения -->
 		{#if message.replyToMessage}
-			<MessageReply 
-				replyMessage={message.replyToMessage} 
-			/>
+			<MessageReply replyMessage={message.replyToMessage} />
 		{/if}
 		<div class="message-content">
 			{message.content}
@@ -170,37 +169,25 @@
 				</span>
 			{/if}
 		</div>
-		
+
 		<!-- Кнопки действий -->
 		<div class="message-actions">
-			<button
-				class="action-btn"
-				onclick={handleReply}
-				title="Ответить на сообщение"
-			>
-				<Reply class="h-3 w-3 mr-1" />
+			<button class="action-btn" onclick={handleReply} title="Ответить на сообщение">
+				<Reply class="mr-1 h-3 w-3" />
 				Ответить
 			</button>
-			
+
 			{#if message.senderId === currentUserId}
 				{#if canEdit}
-					<button
-						class="action-btn"
-						onclick={startEditing}
-						title="Редактировать сообщение"
-					>
-						<Edit class="h-3 w-3 mr-1" />
+					<button class="action-btn" onclick={startEditing} title="Редактировать сообщение">
+						<Edit class="mr-1 h-3 w-3" />
 						Редактировать
 					</button>
 				{/if}
-				
+
 				{#if message.editHistory && message.editHistory.length > 0}
-					<button
-						class="action-btn"
-						onclick={showEditHistory}
-						title="История изменений"
-					>
-						<History class="h-3 w-3 mr-1" />
+					<button class="action-btn" onclick={showEditHistory} title="История изменений">
+						<History class="mr-1 h-3 w-3" />
 						История
 					</button>
 				{/if}
@@ -213,11 +200,11 @@
 		<div class="edit-history">
 			<div class="history-header">
 				<h4>История изменений</h4>
-				<button class="close-btn" onclick={() => showHistory = false}>
+				<button class="close-btn" onclick={() => (showHistory = false)}>
 					<X class="h-4 w-4" />
 				</button>
 			</div>
-			
+
 			<div class="history-list">
 				{#each message.editHistory as historyItem, index (historyItem.id)}
 					<div class="history-item">

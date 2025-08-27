@@ -8,7 +8,11 @@
 		download: { url: string; filename: string };
 	}>();
 
-	const { images = [], currentIndex = 0, isOpen = false } = $props<{
+	const {
+		images = [],
+		currentIndex = 0,
+		isOpen = false
+	} = $props<{
 		images?: string[];
 		currentIndex?: number;
 		isOpen?: boolean;
@@ -122,7 +126,7 @@
 	function downloadImage() {
 		const imageUrl = images[currentIndexState];
 		const filename = `image-${currentIndexState + 1}.jpg`;
-		
+
 		if (browser) {
 			const link = document.createElement('a');
 			link.href = imageUrl;
@@ -131,7 +135,7 @@
 			link.click();
 			document.body.removeChild(link);
 		}
-		
+
 		dispatch('download', { url: imageUrl, filename });
 	}
 
@@ -153,8 +157,8 @@
 </script>
 
 {#if isOpenState}
-	<div 
-		class="image-gallery-overlay" 
+	<div
+		class="image-gallery-overlay"
 		onclick={closeGallery}
 		role="dialog"
 		aria-modal="true"
@@ -164,15 +168,11 @@
 			if (e.key === 'Escape') closeGallery();
 		}}
 	>
-		<div 
-			class="image-gallery-content" 
-			onclick={(e) => e.stopPropagation()}
-			role="document"
-		>
+		<div class="image-gallery-content" role="document">
 			<!-- Кнопка закрытия -->
-			<button 
-				class="close-button" 
-				onclick={closeGallery} 
+			<button
+				class="close-button"
+				onclick={closeGallery}
 				title="Закрыть (Esc)"
 				aria-label="Закрыть галерею"
 			>
@@ -203,16 +203,14 @@
 			{/if}
 
 			<!-- Изображение -->
-			<div
+			<button
 				class="image-container"
 				onwheel={handleWheel}
 				onmousedown={handleMouseDown}
 				onmousemove={handleMouseMove}
 				onmouseup={handleMouseUp}
 				onmouseleave={handleMouseUp}
-				role="img"
 				aria-label="Изображение {currentIndexState + 1} из {images.length}"
-				tabindex="0"
 				onkeydown={(e) => {
 					switch (e.key) {
 						case 'ArrowLeft':
@@ -230,6 +228,7 @@
 							break;
 					}
 				}}
+				type="button"
 			>
 				<img
 					src={images[currentIndexState]}
@@ -237,7 +236,7 @@
 					class="gallery-image"
 					style="transform: scale({zoomLevel}) translate({imagePosition.x}px, {imagePosition.y}px);"
 				/>
-			</div>
+			</button>
 
 			<!-- Панель инструментов -->
 			<div class="toolbar">
@@ -247,8 +246,8 @@
 				</div>
 
 				<div class="toolbar-actions">
-					<button 
-						class="toolbar-button" 
+					<button
+						class="toolbar-button"
 						onclick={zoomOut}
 						disabled={zoomLevel <= 0.5}
 						title="Уменьшить (-)"
@@ -256,16 +255,12 @@
 						<ZoomOut class="h-4 w-4" />
 					</button>
 
-					<button 
-						class="toolbar-button" 
-						onclick={resetZoom}
-						title="Сбросить масштаб"
-					>
+					<button class="toolbar-button" onclick={resetZoom} title="Сбросить масштаб">
 						{Math.round(zoomLevel * 100)}%
 					</button>
 
-					<button 
-						class="toolbar-button" 
+					<button
+						class="toolbar-button"
 						onclick={zoomIn}
 						disabled={zoomLevel >= 3}
 						title="Увеличить (+)"
@@ -273,11 +268,7 @@
 						<ZoomIn class="h-4 w-4" />
 					</button>
 
-					<button 
-						class="toolbar-button" 
-						onclick={downloadImage}
-						title="Скачать изображение"
-					>
+					<button class="toolbar-button" onclick={downloadImage} title="Скачать изображение">
 						<Download class="h-4 w-4" />
 					</button>
 				</div>
@@ -289,7 +280,10 @@
 					{#each images as image, index (index)}
 						<button
 							class="thumbnail {index === currentIndexState ? 'active' : ''}"
-							onclick={() => { currentIndexState = index; resetZoom(); }}
+							onclick={() => {
+								currentIndexState = index;
+								resetZoom();
+							}}
 						>
 							<img src={image} alt="Миниатюра {index + 1}" />
 						</button>
@@ -387,6 +381,9 @@
 		max-height: 80vh;
 		overflow: hidden;
 		cursor: grab;
+		border: none;
+		background: none;
+		padding: 0;
 	}
 
 	.image-container:active {
@@ -510,11 +507,6 @@
 		.nav-button {
 			width: 2.5rem;
 			height: 2.5rem;
-		}
-
-		.nav-button .h-6 {
-			width: 1.25rem;
-			height: 1.25rem;
 		}
 
 		.toolbar {

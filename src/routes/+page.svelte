@@ -43,6 +43,7 @@
 	import FileUpload from '$lib/components/FileUpload.svelte';
 	import ImageGallery from '$lib/components/ImageGallery.svelte';
 	import ReplySelector from '$lib/components/ReplySelector.svelte';
+	import MessageReply from '$lib/components/MessageReply.svelte';
 
 	// Текущий пользователь (в реальном приложении будет из аутентификации)
 	const currentUser = mockUsers[0];
@@ -53,19 +54,21 @@
 	let typingTimeout: NodeJS.Timeout | null = null;
 	let initialized = $state(false);
 	let isDarkMode = $state(false);
-	
+
 	// Состояние для загрузки файлов и галереи
 	let showFileUpload = $state(false);
 	let galleryImages = $state<string[]>([]);
 	let galleryCurrentIndex = $state(0);
 	let showGallery = $state(false);
-	
+
 	// Состояние для ответов на сообщения
 	let showReplySelector = $state(false);
 	let selectedReplyMessage = $state<ReplyMessage | null>(null);
 
 	// Реактивные значения для темы
-	let themeTitle = $derived(isDarkMode ? 'Переключить на светлую тему' : 'Переключить на тёмную тему');
+	let themeTitle = $derived(
+		isDarkMode ? 'Переключить на светлую тему' : 'Переключить на тёмную тему'
+	);
 
 	// Переключение темы
 	function toggleTheme() {
@@ -73,7 +76,7 @@
 		if (browser) {
 			document.documentElement.classList.toggle('dark', isDarkMode);
 			localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
-			
+
 			// Обновляем CSS переменные
 			const root = document.documentElement;
 			if (isDarkMode) {
@@ -85,7 +88,7 @@
 				root.style.setProperty('--bg-color', '#ffffff');
 				root.style.setProperty('--border-color', '#e5e7eb');
 			}
-			
+
 			console.log('Theme toggled:', isDarkMode ? 'dark' : 'light');
 			console.log('HTML classList:', document.documentElement.classList.toString());
 		}
@@ -98,7 +101,7 @@
 			const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 			isDarkMode = savedTheme === 'dark' || (!savedTheme && prefersDark);
 			document.documentElement.classList.toggle('dark', isDarkMode);
-			
+
 			// Инициализируем CSS переменные
 			const root = document.documentElement;
 			if (isDarkMode) {
@@ -110,40 +113,42 @@
 				root.style.setProperty('--bg-color', '#ffffff');
 				root.style.setProperty('--border-color', '#e5e7eb');
 			}
-			
+
 			console.log('Theme initialized:', isDarkMode ? 'dark' : 'light');
 			console.log('HTML classList:', document.documentElement.classList.toString());
-			
+
 			// Инициализация чата
 			console.log('Browser detected, starting initialization...');
-			
+
 			// Сразу загружаем моковые данные для демонстрации
 			console.log('Loading mock data...');
 			chats.set(mockChats);
-			
+
 			// Если есть чаты, выбираем первый
 			if (mockChats.length > 0) {
 				console.log('Setting first chat as active:', mockChats[0]?.name);
 				activeChatId.set(mockChats[0]?.id || '');
 			}
-			
+
 			// Используем setTimeout для асинхронной инициализации
 			setTimeout(() => {
 				if (!initialized) {
 					console.log('Starting WebSocket initialization...');
 					initialized = true;
-					
+
 					// Инициализируем WebSocket соединение
-					initializeWebSocket().then(() => {
-						console.log('WebSocket initialized successfully');
-						// Загружаем начальные данные
-						loadInitialData();
-					}).catch((error) => {
-						console.error('Error initializing chat:', error);
-					});
+					initializeWebSocket()
+						.then(() => {
+							console.log('WebSocket initialized successfully');
+							// Загружаем начальные данные
+							loadInitialData();
+						})
+						.catch((error) => {
+							console.error('Error initializing chat:', error);
+						});
 				}
 			}, 100);
-			
+
 			// Очистка при размонтировании
 			window.addEventListener('beforeunload', () => {
 				if (typingTimeout) {
@@ -157,38 +162,38 @@
 	// Загрузка данных
 	async function loadInitialData() {
 		if (!browser) return;
-		
+
 		try {
 			// Загружаем чаты
 			const chatsData = await loadChats();
 			chats.set(chatsData);
 
 			// Если есть чаты, выбираем первый
-									if (chatsData.length > 0 && !get(activeChatId)) {
-							activeChatId.set(chatsData[0]?.id || '');
-						}
+			if (chatsData.length > 0 && !get(activeChatId)) {
+				activeChatId.set(chatsData[0]?.id || '');
+			}
 		} catch (error) {
 			console.error('Error loading initial data:', error);
 			// Fallback на моковые данные
 			console.log('Using mock data as fallback');
 			chats.set(mockChats);
-			
+
 			// Если есть чаты, выбираем первый
-									if (mockChats.length > 0 && !get(activeChatId)) {
-							activeChatId.set(mockChats[0]?.id || '');
-						}
+			if (mockChats.length > 0 && !get(activeChatId)) {
+				activeChatId.set(mockChats[0]?.id || '');
+			}
 		}
 	}
 
 	// Загрузка сообщений для активного чата
 	async function loadChatMessages(chatId: string) {
 		if (!browser) return;
-		
+
 		try {
 			const { messages: chatMessages } = await loadMessages(chatId);
-			
+
 			// Обновляем сообщения в store
-			messages.update(current => ({
+			messages.update((current) => ({
 				...current,
 				[chatId]: chatMessages
 			}));
@@ -196,9 +201,9 @@
 			console.error('Error loading chat messages:', error);
 			// Fallback на моковые данные
 			console.log('Using mock messages as fallback');
-			const chatMessages = mockMessages.filter(msg => msg.chatId === chatId);
-			
-			messages.update(current => ({
+			const chatMessages = mockMessages.filter((msg) => msg.chatId === chatId);
+
+			messages.update((current) => ({
 				...current,
 				[chatId]: chatMessages
 			}));
@@ -231,16 +236,16 @@
 
 			// Добавляем сообщение в моковые данные
 			mockMessages.push(newMessage);
-			
+
 			// Обновляем store
-			messages.update(current => ({ ...current }));
-			
+			messages.update((current) => ({ ...current }));
+
 			// Отправляем через WebSocket для real-time
 			chatActions.sendMessage(chatId, content);
-			
+
 			// Также отправляем через API для надежности
 			await apiSendMessage(chatId, content);
-			
+
 			// Очищаем поле ввода и выбранный ответ
 			messageText = '';
 			selectedReplyMessage = null;
@@ -254,7 +259,7 @@
 		if (!browser || !get(activeChatId)) return;
 
 		const chatId = get(activeChatId)!;
-		
+
 		// Начинаем печатание
 		chatActions.startTyping(chatId);
 
@@ -272,9 +277,9 @@
 	// Обработчики реакций
 	function handleAddReaction(event: CustomEvent<{ messageId: string; emoji: string }>) {
 		const { messageId, emoji } = event.detail;
-		
+
 		// Находим сообщение и добавляем реакцию
-		const message = mockMessages.find(m => m.id === messageId);
+		const message = mockMessages.find((m) => m.id === messageId);
 		if (message) {
 			const newReaction: Reaction = {
 				id: `react-${Date.now()}`,
@@ -284,31 +289,29 @@
 				createdAt: new Date()
 			};
 			message.reactions.push(newReaction);
-			
+
 			// Обновляем store
-			messages.update(current => ({ ...current }));
+			messages.update((current) => ({ ...current }));
 		}
 	}
 
 	function handleRemoveReaction(event: CustomEvent<{ messageId: string; emoji: string }>) {
 		const { messageId, emoji } = event.detail;
-		
+
 		// Находим сообщение и удаляем реакцию
-		const message = mockMessages.find(m => m.id === messageId);
+		const message = mockMessages.find((m) => m.id === messageId);
 		if (message) {
-			message.reactions = message.reactions.filter(
-				r => !(r.emoji === emoji && r.userId === '1')
-			);
-			
+			message.reactions = message.reactions.filter((r) => !(r.emoji === emoji && r.userId === '1'));
+
 			// Обновляем store
-			messages.update(current => ({ ...current }));
+			messages.update((current) => ({ ...current }));
 		}
 	}
 
 	// Обработчики редактирования сообщений
 	async function handleEditMessage(event: CustomEvent<{ messageId: string; content: string }>) {
 		const { messageId, content } = event.detail;
-		
+
 		try {
 			const response = await fetch(`/api/messages/${messageId}`, {
 				method: 'PATCH',
@@ -320,16 +323,16 @@
 
 			if (response.ok) {
 				const { message: updatedMessage } = await response.json();
-				
+
 				// Обновляем сообщение в моковых данных
-				const messageIndex = mockMessages.findIndex(m => m.id === messageId);
+				const messageIndex = mockMessages.findIndex((m) => m.id === messageId);
 				if (messageIndex !== -1) {
 					mockMessages[messageIndex] = updatedMessage;
 				}
-				
+
 				// Обновляем store
-				messages.update(current => ({ ...current }));
-				
+				messages.update((current) => ({ ...current }));
+
 				console.log('Сообщение успешно отредактировано');
 			} else {
 				const error = await response.json();
@@ -374,7 +377,7 @@
 	function handleFilesSelected(event: CustomEvent<globalThis.File[]>) {
 		const files = event.detail;
 		console.log('Files selected:', files);
-		
+
 		// Здесь можно добавить логику для отправки файлов
 		// Пока что просто закрываем загрузчик
 		showFileUpload = false;
@@ -383,7 +386,7 @@
 	function handleUploadComplete(event: CustomEvent<{ fileId: string; url: string }>) {
 		const { url } = event.detail;
 		console.log('File uploaded:', url);
-		
+
 		// Добавляем изображение в галерею для демонстрации
 		if (url) {
 			galleryImages = [...galleryImages, url];
@@ -411,13 +414,13 @@
 	// Переключение чата
 	async function selectChat(chatId: string) {
 		if (!browser) return;
-		
+
 		console.log('Selecting chat:', chatId);
 		activeChatId.set(chatId);
-		
+
 		// Присоединяемся к чату через WebSocket
 		chatActions.joinChat(chatId);
-		
+
 		// Загружаем сообщения, если их нет
 		const currentMessages = get(messages);
 		if (!currentMessages[chatId] || currentMessages[chatId].length === 0) {
@@ -478,9 +481,7 @@
 							{#if browser}
 								<div class="flex items-center gap-1">
 									<div class="status-indicator online"></div>
-									<p class="text-sm text-gray-500 dark:text-gray-400">
-										онлайн
-									</p>
+									<p class="text-sm text-gray-500 dark:text-gray-400">онлайн</p>
 								</div>
 							{:else}
 								<p class="text-sm text-gray-500 dark:text-gray-400">онлайн</p>
@@ -537,9 +538,9 @@
 
 						<div class="min-w-0 flex-1">
 							<div class="flex items-center justify-between">
-													<h3 class="truncate font-semibold" style="color: var(--text-color);">
-						{chat.name}
-					</h3>
+								<h3 class="truncate font-semibold" style="color: var(--text-color);">
+									{chat.name}
+								</h3>
 								{#if lastMessage}
 									<span class="text-xs text-gray-500 dark:text-gray-400">
 										{formatTime(lastMessage.timestamp)}
@@ -628,9 +629,9 @@
 
 						<div class="flex flex-col {isOwn ? 'items-end' : 'items-start'}">
 							{#if !isOwn}
-														<span class="mb-1 text-sm font-semibold" style="color: var(--text-color);">
-							{sender?.name}
-						</span>
+								<span class="mb-1 text-sm font-semibold" style="color: var(--text-color);">
+									{sender?.name}
+								</span>
 							{/if}
 
 							<div class="message-bubble {isOwn ? 'sent' : 'received'}">
@@ -648,7 +649,7 @@
 								{:else}
 									{message.content}
 								{/if}
-								
+
 								<!-- Отображение изображений -->
 								{#if message.type === 'image' && message.attachments && message.attachments.length > 0}
 									<div class="message-images">
@@ -657,7 +658,8 @@
 												<button
 													class="image-container"
 													onclick={() => openImageGallery([attachment.url], 0)}
-													onkeydown={(e) => e.key === 'Enter' && openImageGallery([attachment.url], 0)}
+													onkeydown={(e) =>
+														e.key === 'Enter' && openImageGallery([attachment.url], 0)}
 													title="Нажмите для увеличения"
 												>
 													<img
@@ -710,15 +712,21 @@
 
 				<!-- Индикатор печатания -->
 				{#if browser && $activeChatTyping.length > 0}
-					<div class="flex gap-3 justify-start">
+					<div class="flex justify-start gap-3">
 						<div class="flex flex-col items-start">
 							<div class="message-bubble typing">
 								<div class="flex items-center gap-1">
 									<span class="text-sm text-gray-500">печатает</span>
 									<div class="flex gap-1">
-										<div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-										<div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
-										<div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+										<div class="h-2 w-2 animate-bounce rounded-full bg-gray-400"></div>
+										<div
+											class="h-2 w-2 animate-bounce rounded-full bg-gray-400"
+											style="animation-delay: 0.1s"
+										></div>
+										<div
+											class="h-2 w-2 animate-bounce rounded-full bg-gray-400"
+											style="animation-delay: 0.2s"
+										></div>
 									</div>
 								</div>
 							</div>
@@ -732,13 +740,10 @@
 				<!-- Отображение выбранного сообщения для ответа -->
 				{#if selectedReplyMessage}
 					<div class="reply-preview">
-						<MessageReply 
-							replyMessage={selectedReplyMessage} 
-							onRemove={removeReply}
-						/>
+						<MessageReply replyMessage={selectedReplyMessage} onRemove={removeReply} />
 					</div>
 				{/if}
-				
+
 				<div class="flex items-end gap-2">
 					<button class="btn-ghost" onclick={openFileUpload} title="Прикрепить файл">
 						<Paperclip class="h-5 w-5" />
@@ -757,7 +762,7 @@
 						></textarea>
 					</div>
 
-											<button class="btn btn-primary" onclick={sendMessage} disabled={!messageText.trim()}>
+					<button class="btn btn-primary" onclick={sendMessage} disabled={!messageText.trim()}>
 						<Send class="h-4 w-4" />
 					</button>
 				</div>
@@ -767,7 +772,9 @@
 			<div class="flex flex-1 items-center justify-center">
 				<div class="text-center">
 					<h2 class="mb-2 text-2xl font-bold text-gray-800 dark:text-gray-200">Выберите чат</h2>
-					<p class="text-lg text-gray-600 dark:text-gray-300">Начните общение, выбрав чат из списка</p>
+					<p class="text-lg text-gray-600 dark:text-gray-300">
+						Начните общение, выбрав чат из списка
+					</p>
 				</div>
 			</div>
 		{/if}
